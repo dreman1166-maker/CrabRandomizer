@@ -28,7 +28,7 @@ if not okHelpers then UEHelpers = nil end
 -- sandbox has no networking API, and this isn't a standalone app for something like
 -- Velopack to attach to. Nexus/Vortex's own "update available" tracking is the signal;
 -- this constant just lets anyone confirm which build they're running.
-local MOD_VERSION = "1.7.0"
+local MOD_VERSION = "1.8.0"
 
 local MOD_TAG = "[CrabRandomizer]"
 
@@ -165,6 +165,12 @@ Config = {
     -- crashed clients. 0 = shuffle immediately (old behaviour, NOT recommended).
     shuffleDelayMs = 2500,
 
+    -- Drawn on-screen menu (overlay.lua). OFF by default and deliberately so: it is the
+    -- only part of this mod that runs every frame, and the randomizer took seven releases
+    -- to stop crashing a co-op client. Turn it on with `randomizeset overlay true` once
+    -- you are happy the rest is stable, and it takes effect on the next launch.
+    overlay = false,
+
     keyQuickMenu = "K",
     keyQuickMenuMod = "CONTROL",
     keyRerollNow = "R",
@@ -179,7 +185,7 @@ local CONFIG_KEY_ORDER = {
     "islandsBeforeRandomizing", "minimumRarity", "randomSeed",
     "rarityWeight1", "rarityWeight2", "rarityWeight3", "rarityWeight4",
     "announceInChat", "logToFile", "dryRun", "shuffleDelayMs",
-    "chatCommands", "chatPrefix", "uiBridge",
+    "chatCommands", "chatPrefix", "uiBridge", "overlay",
     "keyQuickMenu", "keyQuickMenuMod", "keyRerollNow", "keyRerollNowMod",
 }
 
@@ -1767,8 +1773,77 @@ local function PrintMenu()
     log("=====================================================================================")
 end
 
+-- ===================== drawn overlay (optional) =====================
+--
+-- overlay.lua hooks AHUD:ReceiveDrawHUD and paints a menu over the game. It is loaded
+-- through pcall and behind a config flag so that neither a missing file, a syntax error,
+-- nor a failed hook registration can stop the randomizer from working. Overlay stays nil
+-- in every one of those cases and every call site below checks it.
+
+Overlay = nil
+
+if Config.overlay then
+    local okLoad, mod = pcall(require, "overlay")
+    if not okLoad then
+        log("Overlay could not be loaded (the randomizer is unaffected): %s", tostring(mod))
+    else
+        -- Deliberately a narrow, explicit surface rather than handing overlay.lua the
+        -- whole Config table and the internal functions. It can only do these things.
+        local api = {
+            version = function() return MOD_VERSION end,
+            log     = log,
+            get     = function(k) return Config[k] end,
+            set     = function(k, v)
+                Config[k] = v
+                ValidateConfig()
+                SaveConfig()
+            end,
+            presets = function() return PRESET_ORDER end,
+            applyPreset = function(name) ApplyPreset(name) end,
+            toggles = function()
+                local out = {}
+                for _, d in ipairs(ToggleDefs) do
+                    -- Reuse the numpad labels already defined for the text menu so the two
+                    -- never drift apart.
+                    out[#out + 1] = { key = d.key, label = (d.key:gsub("^randomize", "")) }
+                end
+                return out
+            end,
+            randomizeNow = function() RefreshAllPools(); RandomizeEveryone() end,
+            undo         = function() UndoLastShuffle() end,
+            status       = function()
+                for _, k in ipairs(CONFIG_KEY_ORDER) do log("%s = %s", k, tostring(Config[k])) end
+            end,
+            authoritySummary = function()
+                local players = CollectPlayers()
+                if not players then return "no players" end
+                local auth = 0
+                for _, e in ipairs(players) do if e.hasAuth then auth = auth + 1 end end
+                return string.format("%d players / %d auth", #players, auth)
+            end,
+        }
+
+        local okInit, errInit = mod.Init(api)
+        if okInit then
+            Overlay = mod
+            log("Overlay ready - press Ctrl+K in game to open it")
+        else
+            log("Overlay hook failed (the randomizer is unaffected): %s", tostring(errInit))
+        end
+    end
+end
+
 local okMenu, errMenu = pcall(function()
     Bind(Config.keyQuickMenu, Config.keyQuickMenuMod, "K", function()
+        -- With the drawn overlay active, Ctrl+K drives IT and the text quick-menu stays
+        -- out of the way. Falling through to the log-printed menu as well would mean
+        -- every keypress spammed the console behind the panel.
+        if Overlay then
+            Overlay.OnKey("toggle")
+            log("Overlay %s", Overlay.IsOpen() and "opened" or "closed")
+            return
+        end
+
         MenuOpen = not MenuOpen
         if MenuOpen then
             PrintMenu()
@@ -1782,6 +1857,21 @@ local okMenu, errMenu = pcall(function()
             log("Quick menu closed.")
         end
     end)
+
+    -- Arrow keys drive the drawn overlay. Only bound when the overlay actually loaded,
+    -- so we never sit on the arrow keys for players who aren't using it - and each
+    -- handler returns immediately unless the panel is open.
+    if Overlay then
+        local nav = { UP = "up", DOWN = "down", LEFT = "left", RIGHT = "right", ENTER = "enter" }
+        for keyName, action in pairs(nav) do
+            local code = Key[keyName]
+            if code then
+                RegisterKeyBind(code, SafeCallback(function()
+                    if Overlay.IsOpen() then Overlay.OnKey(action) end
+                end))
+            end
+        end
+    end
 
     -- Standalone reroll that does NOT require opening the menu first.
     Bind(Config.keyRerollNow, Config.keyRerollNowMod, "R", function()

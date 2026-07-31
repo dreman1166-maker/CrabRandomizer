@@ -601,5 +601,99 @@ check("shuffle still happened", Mock.perkNames(Mock.playerStates[1]) ~= beforeHo
 check("hook survives a nil Context", pcall(cb, nil, false))
 
 -- =====================================================================
+io.write("\n[24] Drawn HUD overlay\n")
+
+-- overlay.lua sits next to main.lua; make require find it.
+local scriptDir = MAIN_PATH:match("^(.*)[/\\][^/\\]+$") or "."
+package.path = scriptDir .. "/?.lua;" .. package.path
+
+-- --- off by default: nothing is hooked, nothing is required -----------------
+Mock.playerStates = { Mock.makePlayerState(true) }
+Mock.hooks["/Script/Engine.HUD:ReceiveDrawHUD"] = nil
+loadMain()
+check("overlay is off by default", Overlay == nil)
+check("no draw hook registered when off",
+      Mock.hooks["/Script/Engine.HUD:ReceiveDrawHUD"] == nil)
+check("randomizer still fully registered with overlay off",
+      Mock.registeredCommands["randomizenow"] ~= nil)
+
+-- --- switched on ------------------------------------------------------------
+package.loaded["overlay"] = nil
+Mock.hooks["/Script/Engine.HUD:ReceiveDrawHUD"] = nil
+__fs_write(TEST_CONFIG_PATH, "overlay=true\n")
+Mock.playerStates = { Mock.makePlayerState(true), Mock.makePlayerState(true) }
+loadMain(true)
+
+check("overlay loaded when enabled", Overlay ~= nil)
+check("draw hook registered", Mock.hooks["/Script/Engine.HUD:ReceiveDrawHUD"] ~= nil)
+
+-- Closed: the hook must run but paint nothing. This is the per-frame cost when the
+-- player isn't using the menu, so it has to be genuinely zero draw calls.
+local hud = Mock.makeHUD()
+Mock.drawFrame(hud, 1920, 1080)
+check("closed overlay draws nothing", hud.rects == 0 and hud.texts == 0)
+
+-- Open it via the real Ctrl+K path rather than calling OnKey directly.
+Mock.pressKey("K")
+check("ctrl+K opens the overlay", Overlay.IsOpen())
+
+hud = Mock.makeHUD()
+Mock.drawFrame(hud, 1920, 1080)
+check("open overlay paints a panel", hud.rects > 0)
+check("open overlay paints text", hud.texts > 0)
+check("overlay shows the mod name", Mock.hudTextContains(hud, "CrabRandomizer"))
+check("overlay shows the co-op row", Mock.hudTextContains(hud, "Co-op"))
+
+-- Navigation must not throw and must not paint outside the frame.
+local navOk = pcall(function()
+    for _ = 1, 6 do Mock.pressKey("DOWN") end
+    Mock.pressKey("UP")
+    Mock.pressKey("RIGHT")
+    Mock.pressKey("LEFT")
+end)
+check("arrow navigation does not error", navOk)
+
+-- Changing a value through the overlay must actually reach the mod's config, not just
+-- the overlay's own state. Read it back through randomizestatus like a user would.
+local function coopFromStatus()
+    Mock.clearOutput()
+    Mock.runCommand("randomizestatus")
+    for _, l in ipairs(Mock.output) do
+        local v = l:match("coopMode%s*=%s*(%S+)")
+        if v then return v end
+    end
+    return nil
+end
+
+local coopBefore = coopFromStatus()
+local changed = false
+for _ = 1, 40 do
+    Mock.pressKey("DOWN"); Mock.pressKey("RIGHT")
+    local now = coopFromStatus()
+    if now and coopBefore and now ~= coopBefore then changed = true break end
+end
+check("overlay can change a real config value", changed,
+      "coopMode stayed " .. tostring(coopBefore))
+
+-- A hostile HUD that throws on every draw must latch the overlay off, not throw forever.
+local bad = Mock.makeHUD({ throw = true })
+local survived = true
+for _ = 1, 6 do
+    if not pcall(Mock.drawFrame, bad, 1920, 1080) then survived = false break end
+end
+check("draw failures never propagate", survived)
+check("overlay disables itself after repeated draw errors",
+      Overlay.Status():find("disabled") ~= nil, Overlay.Status())
+
+-- and the randomizer must be completely unaffected by that
+Mock.clearOutput()
+Mock.runCommand("randomizenow")
+check("randomizer still works after the overlay died",
+      not Mock.outputContains("Error"))
+
+__fs_remove(TEST_CONFIG_PATH)
+package.loaded["overlay"] = nil
+
+-- =====================================================================
 io.write(string.format("\n==== %d passed, %d failed ====\n", passed, failed))
 if failed > 0 then os.exit(1) end

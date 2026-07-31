@@ -223,6 +223,48 @@ function Mock.arContains(needle)
     return false
 end
 
+--- A stand-in AHUD. Records every draw call so tests can assert the overlay actually
+--- painted something, and can be told to throw so the fail-safe path is exercised too.
+function Mock.makeHUD(opts)
+    opts = opts or {}
+    local h = { rects = 0, texts = 0, lines = {} }
+    h.DrawRect = function(self, col, x, y, w, hh)
+        if opts.throw then error("simulated native draw failure") end
+        self.rects = self.rects + 1
+    end
+    h.DrawText = function(self, s, col, x, y, font, scale, bScale)
+        if opts.throw then error("simulated native draw failure") end
+        self.texts = self.texts + 1
+        table.insert(self.lines, tostring(s))
+    end
+    return h
+end
+
+--- Invokes the ReceiveDrawHUD hook the way the engine would, once per frame.
+function Mock.drawFrame(hud, sx, sy)
+    local cb = Mock.hooks["/Script/Engine.HUD:ReceiveDrawHUD"]
+    if not cb then return false end
+    cb({ get = function() return hud end },
+       { get = function() return sx or 1920 end },
+       { get = function() return sy or 1080 end })
+    return true
+end
+
+function Mock.hudTextContains(hud, needle)
+    for _, l in ipairs(hud.lines) do
+        if l:find(needle, 1, true) then return true end
+    end
+    return false
+end
+
+--- Presses one of the overlay's navigation keys by name.
+function Mock.pressKey(keyName)
+    local code = Key[keyName]
+    for _, b in ipairs(Mock.registeredKeybinds) do
+        if b.key == code then b.cb() end
+    end
+end
+
 --- Like arContains but treats the needle as a Lua pattern, for assertions that should not
 --- be pinned to a literal (version numbers, counts, timings).
 function Mock.arMatches(pattern)
