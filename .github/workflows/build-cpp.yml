@@ -7,6 +7,13 @@
 # Manual trigger by default - there's no reason to spend 30+ minutes of CI on every push
 # to a Lua file.
 
+# STATUS: BLOCKED UPSTREAM (2026-07-31)
+# RE-UE4SS declares a submodule 'Re-UE4SS/UEPseudo' (deps/first/Unreal) that now 404s on
+# both main and v3.0.1, so the UE4SS source tree cannot be assembled from a fresh clone by
+# anyone. Without it there is no UE4SS CMake target to link against, so this mod cannot be
+# compiled. Nothing here is wrong - re-run manually once upstream restores that repo.
+# Auto-trigger removed so it stops failing on every push to cpp/.
+
 name: build-cpp-ui
 
 on:
@@ -16,10 +23,6 @@ on:
         description: "RE-UE4SS branch/tag to build against"
         required: false
         default: "v3.0.1"
-  push:
-    paths:
-      - 'cpp/**'
-      - '.github/workflows/build-cpp.yml'
 
 jobs:
   build:
