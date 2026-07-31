@@ -232,3 +232,12 @@ package.loaded["UEHelpers"] = {
         }
     end,
 }
+
+-- Fires the chat-box hook the way the game does: callback(Context, Text, CommitMethod)
+-- where Text is a wrapped FText needing :get() then :ToString().
+function Mock.sendChat(str)
+    local cb = Mock.hooks["/Script/CrabChampions.CrabGameStateUI:OnChatTextCommitted"]
+    if not cb then error("chat hook not registered") end
+    local ftext = { ToString = function() return str end }
+    return cb(nil, { get = function() return ftext end }, 0)
+end

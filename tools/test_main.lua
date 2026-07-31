@@ -245,7 +245,7 @@ io.write("\n[14] Console output actually reaches the in-game console (ar:Log)\n"
 Mock.playerStates = { Mock.makePlayerState(true) }
 loadMain()
 Mock.runCommand("randomizestatus")
-check("randomizestatus writes version to ar", Mock.arContains("version = 1.4.4"))
+check("randomizestatus writes version to ar", Mock.arContains("version = 1.5.0"))
 check("randomizestatus writes pool info to ar", Mock.arContains("Pool CrabPerkDA"))
 
 Mock.runCommand("randomizeauthority")
@@ -471,6 +471,56 @@ local okIsland = pcall(Mock.clearIsland)
 check("client island clear does not crash", okIsland)
 check("client island clear mutates nothing", Mock.perkNames(Mock.playerStates[1]) == clientIslandBefore)
 check("client island clear sends no RPC", Mock.playerStates[1].equipCalls == 0)
+
+-- =====================================================================
+-- The in-game chat box is the only interactive surface pure Lua can reach (UE4SS exposes
+-- no drawing API to Lua), so these commands ARE the in-game menu and must actually work.
+io.write("\n[21] In-game chat commands\n")
+Mock.playerStates = { Mock.makePlayerState(true) }
+loadMain()
+check("chat hook registered",
+    Mock.hooks["/Script/CrabChampions.CrabGameStateUI:OnChatTextCommitted"] ~= nil)
+
+Mock.clearOutput()
+Mock.sendChat("hello everyone")
+check("ordinary chat is left alone", not Mock.outputContains("Unknown command"))
+
+Mock.clearOutput()
+Mock.sendChat("!rand help")
+check("help lists commands", Mock.outputContains("Commands:"))
+check("help lists presets", Mock.outputContains("chaos"))
+
+Mock.clearOutput()
+Mock.sendChat("!rand preset chaos")
+check("preset applied from chat", Mock.outputContains("Applied preset 'chaos'"))
+
+local chatBefore = Mock.perkNames(Mock.playerStates[1])
+Mock.sendChat("!rand now")
+check("reroll from chat actually shuffles", Mock.perkNames(Mock.playerStates[1]) ~= chatBefore)
+
+Mock.sendChat("!rand undo")
+check("undo from chat restores", Mock.perkNames(Mock.playerStates[1]) == chatBefore)
+
+Mock.clearOutput()
+Mock.sendChat("!rand set islandsBeforeRandomizing 4")
+check("set from chat works", Mock.outputContains("islandsBeforeRandomizing = 4"))
+
+Mock.clearOutput()
+Mock.sendChat("!rand auth")
+check("auth from chat reports", Mock.outputContains("CAN apply changes"))
+
+Mock.clearOutput()
+Mock.sendChat("!rand banana")
+check("unknown subcommand handled", Mock.outputContains("Unknown command"))
+
+check("malformed input does not crash", pcall(Mock.sendChat, "!rand set"))
+check("empty chat does not crash", pcall(Mock.sendChat, ""))
+check("bare prefix shows help", pcall(Mock.sendChat, "!rand"))
+
+Mock.runCommand("randomizeset", "chatCommands", "false")
+Mock.clearOutput()
+Mock.sendChat("!rand help")
+check("chatCommands=false disables it", not Mock.outputContains("Commands:"))
 
 -- =====================================================================
 io.write(string.format("\n==== %d passed, %d failed ====\n", passed, failed))

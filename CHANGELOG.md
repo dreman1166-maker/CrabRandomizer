@@ -3,6 +3,30 @@
 Versions are declared in `Mods/CrabRandomizer/Scripts/main.lua` (`MOD_VERSION`); CI fails if
 this file has no matching entry. Check yours in game with `randomizestatus`.
 
+## [1.5.0]
+
+**In-game chat commands** - the closest thing to an in-game menu that is actually
+possible from Lua.
+
+Type `!rand help` in the game's own chat box. No F10 console needed:
+
+```
+!rand now              reroll now
+!rand undo             undo the last shuffle
+!rand status           version and current settings
+!rand auth             co-op authority check
+!rand history          recent changes
+!rand preset <name>    off | gentle | default | chaos | mirror | swap
+!rand set <key> <val>  change any setting
+```
+
+Disable with `chatCommands=false`; change the trigger with `chatPrefix`.
+
+Why this rather than a drawn overlay: UE4SS exposes no ImGui or drawing bindings to Lua
+mods (upstream issue #1072, still open), and a custom UMG overlay needs a widget asset
+authored in Unreal Editor and cooked into a `.pak` with the game modkit. The chat box
+(`CrabGameStateUI:OnChatTextCommitted`) is hookable, so it becomes the control surface.
+
 ## [1.4.4]
 
 **Fixes a hard crash for joining clients on island transitions.**

@@ -73,3 +73,10 @@ keyRerollNowMod=CONTROL
 ; and respawns pawns, and mutating player state during that window crashed joining
 ; clients. Leave this alone unless you know why you're changing it. 0 = immediate.
 shuffleDelayMs=2500
+
+; In-game chat commands. Type "!rand help" in the game's chat box - no F10 console
+; needed. This is the closest thing to an in-game menu that is actually possible:
+; UE4SS exposes no drawing API to Lua mods, so a drawn overlay would require a custom
+; UMG widget cooked with the game modkit.
+chatCommands=true
+chatPrefix=!rand

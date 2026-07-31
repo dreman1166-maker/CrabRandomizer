@@ -28,7 +28,7 @@ if not okHelpers then UEHelpers = nil end
 -- sandbox has no networking API, and this isn't a standalone app for something like
 -- Velopack to attach to. Nexus/Vortex's own "update available" tracking is the signal;
 -- this constant just lets anyone confirm which build they're running.
-local MOD_VERSION = "1.4.4"
+local MOD_VERSION = "1.5.0"
 
 local MOD_TAG = "[CrabRandomizer]"
 
@@ -141,6 +141,11 @@ Config = {
     logToFile = false,
     dryRun = false,
 
+    -- In-game chat commands: type e.g. "!rand help" in the game chat box. This is the
+    -- nearest thing to an in-game menu Lua can reach (UE4SS has no Lua drawing API).
+    chatCommands = true,
+    chatPrefix = "!rand",
+
     -- Milliseconds to wait after an island clear before shuffling. The transition
     -- destroys and respawns pawns; touching player state during that window is what
     -- crashed clients. 0 = shuffle immediately (old behaviour, NOT recommended).
@@ -160,6 +165,7 @@ local CONFIG_KEY_ORDER = {
     "islandsBeforeRandomizing", "minimumRarity", "randomSeed",
     "rarityWeight1", "rarityWeight2", "rarityWeight3", "rarityWeight4",
     "announceInChat", "logToFile", "dryRun", "shuffleDelayMs",
+    "chatCommands", "chatPrefix",
     "keyQuickMenu", "keyQuickMenuMod", "keyRerollNow", "keyRerollNowMod",
 }
 
@@ -1380,6 +1386,145 @@ Command("randomizedump", function()
     f:close()
     log("Wrote diagnostic dump to %s - attach this file when reporting a problem.", path)
 end)
+
+-- ===================== In-game chat commands =====================
+--
+-- The closest thing to an in-game menu that pure Lua can actually reach. UE4SS exposes
+-- no ImGui/drawing bindings to Lua (upstream issue #1072, still open), and a custom UMG
+-- overlay needs a cooked widget asset built in the Unreal Editor with the game's modkit.
+-- What IS hookable is the game's own chat box - CrabGameStateUI:OnChatTextCommitted -
+-- so commands can be typed in-game without touching the F10 console at all.
+--
+-- Type e.g.  !rand help  in chat.
+
+local function ChatReply(fmt, ...)
+    local ok, msg = pcall(string.format, fmt, ...)
+    if not ok then msg = tostring(fmt) end
+    log("%s", msg) -- always goes to console/log
+    -- Also try to echo into chat so it's visible in-game. Unverified API; if it fails
+    -- once we stop trying rather than spamming errors every command.
+    if ChatFailedOnce then return end
+    local pc = GetLocalPlayerController()
+    if not pc then return end
+    local sent = pcall(function() pc:ServerSendChatMessage("[Rand] " .. msg) end)
+    if not sent then ChatFailedOnce = true end
+end
+
+local ChatHandlers = {
+    help = function()
+        ChatReply("Commands: %s now | undo | status | auth | history | preset <name> | set <key> <value>",
+            Config.chatPrefix)
+        ChatReply("Presets: %s", table.concat(PRESET_ORDER, ", "))
+    end,
+    now = function()
+        ChatReply("Rerolling now...")
+        RefreshAllPools()
+        RandomizeEveryone()
+    end,
+    undo = function() UndoLastShuffle() end,
+    status = function()
+        ChatReply("v%s | rollMode=%s coopMode=%s islands=%d minRarity=%d dryRun=%s",
+            MOD_VERSION, Config.rollMode, Config.coopMode,
+            Config.islandsBeforeRandomizing, Config.minimumRarity, tostring(Config.dryRun))
+    end,
+    auth = function()
+        local players = CollectPlayers()
+        if not players then ChatReply("No players found.") return end
+        local mine = 0
+        for _, e in ipairs(players) do if e.hasAuth then mine = mine + 1 end end
+        if mine > 0 then
+            ChatReply("This game CAN apply changes to %d/%d player(s).", mine, #players)
+        else
+            ChatReply("This game has authority over NOTHING - the host must run the mod.")
+        end
+    end,
+    history = function()
+        if #History == 0 then ChatReply("No shuffles yet.") return end
+        local shown = math.min(5, #History)
+        ChatReply("Last %d change(s):", shown)
+        for i = #History - shown + 1, #History do
+            local h = History[i]
+            ChatReply("  %s: %s -> %s", h.slot, h.before, h.after)
+        end
+    end,
+    preset = function(arg)
+        local name = (arg or ""):match("^%S*")
+        if not name or name == "" or not Presets[name] then
+            ChatReply("Presets: %s", table.concat(PRESET_ORDER, ", "))
+            return
+        end
+        ApplyPreset(name)
+        SaveConfig()
+        ChatReply("Applied preset '%s' (islands=%d, rollMode=%s, coopMode=%s)",
+            name, Config.islandsBeforeRandomizing, Config.rollMode, Config.coopMode)
+    end,
+    set = function(arg)
+        local key, value = (arg or ""):match("^(%S+)%s+(%S+)")
+        if not key or Config[key] == nil then
+            ChatReply("Usage: %s set <key> <value>", Config.chatPrefix)
+            return
+        end
+        local cur = Config[key]
+        if type(cur) == "boolean" then
+            Config[key] = (value:lower() == "true")
+        elseif type(cur) == "number" then
+            local n = tonumber(value)
+            if not n then ChatReply("'%s' is not a number", value) return end
+            Config[key] = math.floor(n)
+            if key == "randomSeed" then ApplySeed() end
+        else
+            Config[key] = value
+        end
+        ValidateConfig()
+        SaveConfig()
+        ChatReply("%s = %s", key, tostring(Config[key]))
+    end,
+}
+
+--- Returns true if the text was one of our commands (so it was handled here).
+local function HandleChatText(raw)
+    if not Config.chatCommands then return false end
+    local text = tostring(raw or "")
+    text = text:gsub("^%s+", ""):gsub("%s+$", "")
+    if text == "" then return false end
+
+    local prefix = Config.chatPrefix
+    if text:sub(1, #prefix):lower() ~= prefix:lower() then return false end
+
+    local rest = text:sub(#prefix + 1):gsub("^%s+", "")
+    local cmd, arg = rest:match("^(%S*)%s*(.*)$")
+    cmd = (cmd or ""):lower()
+    if cmd == "" then cmd = "help" end
+
+    local handler = ChatHandlers[cmd]
+    if not handler then
+        ChatReply("Unknown command '%s'. Try: %s help", cmd, prefix)
+        return true
+    end
+    handler(arg)
+    return true
+end
+
+do
+    local ok, err = pcall(function()
+        RegisterHook("/Script/CrabChampions.CrabGameStateUI:OnChatTextCommitted",
+            function(Context, Text, CommitMethod)
+                local handled, herr = pcall(function()
+                    local t = Text and Text:get()
+                    if t == nil then return end
+                    -- Chat text is usually an FText; fall back to tostring if not.
+                    local s
+                    local okStr = pcall(function() s = t:ToString() end)
+                    if not okStr or s == nil then s = tostring(t) end
+                    HandleChatText(s)
+                end)
+                if not handled then log("Chat command error: %s", tostring(herr)) end
+            end)
+    end)
+    if not ok then
+        log("Could not hook the chat box (in-game chat commands unavailable): %s", tostring(err))
+    end
+end
 
 -- ===================== Keybinds =====================
 
