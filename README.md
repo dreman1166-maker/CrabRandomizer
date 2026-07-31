@@ -138,6 +138,29 @@ tools/                                 mocked-UE4SS test harness
 build.ps1                              assembles release zips
 ```
 
+## Auto-update
+
+Run **`installer/Update.bat`** any time. It checks GitHub releases, compares against the
+`MOD_VERSION` in your installed `main.lua`, and installs the newer version **keeping your
+`randoconfig.txt` settings** (new options get added at their defaults, and it writes a `.bak`).
+No GitHub account or token needed.
+
+To never be on a stale version, launch the game with **`installer/Play Crab Champions.bat`**
+instead of Steam's Play button — it updates first, then launches. If GitHub is unreachable it
+skips the update and launches anyway.
+
+```powershell
+.\Update.ps1              # interactive
+.\Update.ps1 -Silent      # for launch scripts / scheduled tasks
+.\Update.ps1 -CheckOnly   # exit 10 = update available, 0 = current
+```
+
+> **Why not Velopack / a normal updater framework?** Those manage a standalone *application* —
+> they own an install directory, replace an exe, and relaunch a process. This mod is a `.lua` file
+> read by UE4SS inside the game's process: there's no binary of ours to replace. And UE4SS's Lua
+> sandbox has no networking API, so the mod cannot update itself from the inside. An external
+> script is the only thing that can do the job here, so that's what this is.
+
 ## Notes on distribution
 
 - **Nexus quarantines archives containing `.bat`/`.ps1`** (`-ExecutionPolicy Bypass` plus
