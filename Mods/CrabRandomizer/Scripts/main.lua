@@ -28,7 +28,7 @@ if not okHelpers then UEHelpers = nil end
 -- sandbox has no networking API, and this isn't a standalone app for something like
 -- Velopack to attach to. Nexus/Vortex's own "update available" tracking is the signal;
 -- this constant just lets anyone confirm which build they're running.
-local MOD_VERSION = "1.5.0"
+local MOD_VERSION = "1.5.1"
 
 local MOD_TAG = "[CrabRandomizer]"
 
@@ -419,16 +419,23 @@ end
 --- hard crashes on island clear, so correctness wins over the saved scans here: a pool
 --- whose cache no longer looks live is rebuilt from scratch. This runs on shuffle
 --- triggers only, never per frame.
+--- ALWAYS rescans. Two earlier attempts at being clever here were both wrong:
+---   1. "data assets are static, scan once"  -> a pool cached during a level transition
+---      could hold unloaded objects.
+---   2. "only rescan if empty or invalid"    -> WORSE. Assets load LAZILY, so an early
+---      scan finds a partial set (observed: WeaponModDA=4 at startup vs 91 in a lobby).
+---      A partially-filled pool is neither empty nor invalid, so it never grew and the
+---      mod silently rerolled from 4 items instead of 91.
+--- This runs on shuffle triggers only - never per frame - so 9 FindAllOf calls is not a
+--- cost worth optimising against correctness again.
 local function RefreshAllPools()
     for _, def in ipairs(PoolDefs) do
-        local cached = Pools[def.key]
-        local stale = (#cached == 0)
-        if not stale then
-            -- Spot-check the ends of the cache rather than all ~350 entries; an unloaded
-            -- asset batch invalidates wholesale, so this catches it cheaply.
-            stale = not IsLive(cached[1]) or not IsLive(cached[#cached])
+        local before = #Pools[def.key]
+        ScanPool(def)
+        local after = #Pools[def.key]
+        if after > before and before > 0 then
+            log("%s grew %d -> %d (assets finished loading)", def.key, before, after)
         end
-        if stale then ScanPool(def) end
     end
 end
 

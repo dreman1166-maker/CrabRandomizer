@@ -3,6 +3,18 @@
 Versions are declared in `Mods/CrabRandomizer/Scripts/main.lua` (`MOD_VERSION`); CI fails if
 this file has no matching entry. Check yours in game with `randomizestatus`.
 
+## [1.5.1]
+
+**Fixes pools getting stuck partially loaded.** Data assets load lazily: a scan at
+mod-load finds only a fraction of them (a real log showed WeaponModDA=4 at startup vs 91
+once in a lobby). RefreshAllPools only rescanned pools that were empty or invalid, so a
+partially-filled pool never grew and the mod silently rerolled from a fraction of the
+real item list. It now always rescans, and logs when a pool grows.
+
+Also confirmed from that log: this build has NO separate grenade slot - CrabGrenadeModDA
+does not exist, so grenades are the "Ability" slot. The per-subsystem degradation handled
+it exactly as intended, disabling only that one slot type.
+
 ## [1.5.0]
 
 **In-game chat commands** - the closest thing to an in-game menu that is actually

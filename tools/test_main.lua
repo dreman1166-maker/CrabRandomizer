@@ -245,7 +245,7 @@ io.write("\n[14] Console output actually reaches the in-game console (ar:Log)\n"
 Mock.playerStates = { Mock.makePlayerState(true) }
 loadMain()
 Mock.runCommand("randomizestatus")
-check("randomizestatus writes version to ar", Mock.arContains("version = 1.5.0"))
+check("randomizestatus writes version to ar", Mock.arContains("version = 1.5.1"))
 check("randomizestatus writes pool info to ar", Mock.arContains("Pool CrabPerkDA"))
 
 Mock.runCommand("randomizeauthority")
@@ -521,6 +521,32 @@ Mock.runCommand("randomizeset", "chatCommands", "false")
 Mock.clearOutput()
 Mock.sendChat("!rand help")
 check("chatCommands=false disables it", not Mock.outputContains("Commands:"))
+
+-- =====================================================================
+-- Data assets load LAZILY: a scan at mod-load time finds only a partial set (observed
+-- in a real log: WeaponModDA=4 at startup vs 91 once in a lobby). A pool that is neither
+-- empty nor invalid must still be rescanned, or the mod silently rerolls from a fraction
+-- of the real item list forever.
+io.write("\n[22] Partially-loaded pools still grow (lazy asset loading)\n")
+Mock.playerStates = { Mock.makePlayerState(true) }
+local fullPerks = Mock.pools.CrabPerkDA
+-- Simulate load-time: only a few perks exist yet.
+Mock.pools.CrabPerkDA = { fullPerks[1], fullPerks[2], fullPerks[3] }
+loadMain()
+Mock.runCommand("randomizepreset", "default")
+Mock.clearOutput()
+Mock.runCommand("randomizestatus")
+check("starts with the partial set", Mock.arContains("Pool CrabPerkDA [CrabPerkDA] has 3 entries"),
+    "expected 3 at load")
+
+-- Now the rest of the assets finish loading.
+Mock.pools.CrabPerkDA = fullPerks
+Mock.clearOutput()
+Mock.runCommand("randomizestatus")
+check("pool grew to the full set after assets loaded",
+    Mock.arContains("Pool CrabPerkDA [CrabPerkDA] has " .. #fullPerks .. " entries"),
+    "expected " .. #fullPerks)
+check("growth is reported", Mock.outputContains("assets finished loading"))
 
 -- =====================================================================
 io.write(string.format("\n==== %d passed, %d failed ====\n", passed, failed))
