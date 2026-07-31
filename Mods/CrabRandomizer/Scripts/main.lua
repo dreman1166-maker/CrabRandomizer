@@ -28,7 +28,7 @@ if not okHelpers then UEHelpers = nil end
 -- sandbox has no networking API, and this isn't a standalone app for something like
 -- Velopack to attach to. Nexus/Vortex's own "update available" tracking is the signal;
 -- this constant just lets anyone confirm which build they're running.
-local MOD_VERSION = "1.8.0"
+local MOD_VERSION = "1.8.1"
 
 local MOD_TAG = "[CrabRandomizer]"
 
@@ -1344,44 +1344,20 @@ Command("randomizeset", function(parts)
     log("%s = %s", key, tostring(Config[key]))
     SaveConfig()
 
-    -- Turning the overlay on used to need a game restart, because the module was only
-    -- loaded during startup. Load it here too so `randomizeset overlay true` connects
-    -- Ctrl+K immediately. TryLoadOverlay is a global defined further down; globals resolve
-    -- when this runs, not when it is defined, so the ordering is fine.
+    -- The key still exists so an old randoconfig.txt does not error, but it does nothing.
     if key == "overlay" then
-        if Config.overlay and Overlay == nil then
-            if TryLoadOverlay and TryLoadOverlay() then
-                log("Overlay is live - press Ctrl+K now. Arrows move, enter applies.")
-            else
-                log("Overlay could not be started. Ctrl+K still opens the text menu.")
-            end
-        elseif not Config.overlay and Overlay ~= nil then
-            -- Can't unregister a UE4SS hook, so close it and stop drawing. The hook stays
-            -- resident but early-outs on the first comparison.
-            if Overlay.IsOpen() then Overlay.OnKey("close") end
-            Overlay = nil
-            log("Overlay switched off. Ctrl+K returns to the text menu on next launch.")
-        end
+        log("The drawn overlay was removed in 1.8.1 - it could never render in this game")
+        log("(AHUD::DrawHUD is never reached) and its hook broke co-op invites.")
+        log("Ctrl+K opens the text quick menu; type '!rand help' in game chat for more.")
     end
 end)
 
---- "I pressed Ctrl+K and nothing happened" has several very different causes and they are
---- indistinguishable from the outside. This separates them.
 Command("randomizeoverlay", function(parts)
-    log("--- overlay diagnostics ---")
-    log("config overlay = %s", tostring(Config.overlay))
-
-    if not Config.overlay then
-        log("The overlay is switched OFF. Turn it on with:  randomizeset overlay true")
-        return
-    end
-    if Overlay == nil then
-        log("overlay.lua is NOT loaded. Check that overlay.lua sits next to main.lua in")
-        log("  Mods\\CrabRandomizer\\Scripts\\  and look further up this log for the reason.")
-        return
-    end
-
-    for _, line in ipairs(Overlay.Diag()) do log("%s", line) end
+    log("The drawn overlay was REMOVED in 1.8.1.")
+    log("Crab Champions renders its HUD entirely through UMG and never calls")
+    log("AHUD::DrawHUD, so the draw hook fired 0 times - it could not draw anything.")
+    log("Leaving that hook registered also broke co-op invite-accept, so it is gone.")
+    log("Use Ctrl+K for the text quick menu, or '!rand help' in game chat.")
 end)
 
 Command("randomizepreset", function(parts)
@@ -1819,80 +1795,30 @@ end
 -- nor a failed hook registration can stop the randomizer from working. Overlay stays nil
 -- in every one of those cases and every call site below checks it.
 
-Overlay = nil
+Overlay = nil  -- always nil since 1.8.1; kept so old references stay safe
 
---- Global on purpose: the randomizeset handler above is defined earlier in the file and
---- calls this by name at runtime, so Ctrl+K can be connected without restarting the game.
---- Returns true if the overlay is now live.
+--- REMOVED in 1.8.1. Kept as a stub that always refuses, so an existing randoconfig.txt
+--- with overlay=true (which the 1.8.0 installer may have written) cannot resurrect it.
+---
+--- The drawn overlay hooked AHUD:ReceiveDrawHUD. Crab Champions renders its entire HUD
+--- through UMG widgets and never reaches AHUD::DrawHUD, so the hook fired ZERO times -
+--- proven by randomizeoverlay in a real session. It could never have drawn anything.
+---
+--- Worse, registering that hook was not free. It was a script hook on a
+--- BlueprintImplementableEvent, left installed across the actor teardown that happens when
+--- you accept a co-op invite, and the game began crashing on invite-accept for both the
+--- host and the joiner. A feature that cannot possibly work is not worth any risk at all,
+--- let alone breaking co-op.
+---
+--- A real in-game menu needs a UMG widget cooked into a .pak with the Crab Champions
+--- modkit. It cannot be done from Lua in this game. Do not re-add this.
 function TryLoadOverlay()
-    if Overlay ~= nil then return true end
-
-    local okLoad, mod = pcall(require, "overlay")
-    if not okLoad then
-        log("Overlay could not be loaded (the randomizer is unaffected): %s", tostring(mod))
-        return false
-    else
-        -- Deliberately a narrow, explicit surface rather than handing overlay.lua the
-        -- whole Config table and the internal functions. It can only do these things.
-        local api = {
-            version = function() return MOD_VERSION end,
-            log     = log,
-            get     = function(k) return Config[k] end,
-            set     = function(k, v)
-                Config[k] = v
-                ValidateConfig()
-                SaveConfig()
-            end,
-            presets = function() return PRESET_ORDER end,
-            applyPreset = function(name) ApplyPreset(name) end,
-            toggles = function()
-                local out = {}
-                for _, d in ipairs(ToggleDefs) do
-                    -- Reuse the numpad labels already defined for the text menu so the two
-                    -- never drift apart.
-                    out[#out + 1] = { key = d.key, label = (d.key:gsub("^randomize", "")) }
-                end
-                return out
-            end,
-            randomizeNow = function() RefreshAllPools(); RandomizeEveryone() end,
-            undo         = function() UndoLastShuffle() end,
-            status       = function()
-                for _, k in ipairs(CONFIG_KEY_ORDER) do log("%s = %s", k, tostring(Config[k])) end
-            end,
-            authoritySummary = function()
-                local players = CollectPlayers()
-                if not players then return "no players" end
-                local auth = 0
-                for _, e in ipairs(players) do if e.hasAuth then auth = auth + 1 end end
-                return string.format("%d players / %d auth", #players, auth)
-            end,
-        }
-
-        local okInit, errInit = mod.Init(api)
-        if okInit then
-            Overlay = mod
-            log("Overlay ready - press Ctrl+K in game to open it")
-            return true
-        else
-            log("Overlay hook failed (the randomizer is unaffected): %s", tostring(errInit))
-            return false
-        end
-    end
+    return false
 end
 
-if Config.overlay then TryLoadOverlay() end
 
 local okMenu, errMenu = pcall(function()
     Bind(Config.keyQuickMenu, Config.keyQuickMenuMod, "K", function()
-        -- With the drawn overlay active, Ctrl+K drives IT and the text quick-menu stays
-        -- out of the way. Falling through to the log-printed menu as well would mean
-        -- every keypress spammed the console behind the panel.
-        if Overlay then
-            Overlay.OnKey("toggle")
-            log("Overlay %s", Overlay.IsOpen() and "opened" or "closed")
-            return
-        end
-
         MenuOpen = not MenuOpen
         if MenuOpen then
             PrintMenu()
@@ -1906,26 +1832,6 @@ local okMenu, errMenu = pcall(function()
             log("Quick menu closed.")
         end
     end)
-
-    -- Arrow keys drive the drawn overlay.
-    --
-    -- Bound unconditionally rather than only when the overlay loaded at startup: the
-    -- overlay can now be switched on mid-session with `randomizeset overlay true`, and
-    -- keybinds can only be registered once, here. Gating this on Overlay would have given
-    -- a menu that opens but cannot be navigated - which is exactly the kind of half-wired
-    -- feature that looks like a crash to whoever is holding the controller.
-    --
-    -- Cost when unused is nil-check plus a boolean, and the game still receives the key:
-    -- UE4SS keybinds observe input, they do not consume it.
-    local nav = { UP = "up", DOWN = "down", LEFT = "left", RIGHT = "right", ENTER = "enter" }
-    for keyName, action in pairs(nav) do
-        local code = Key[keyName]
-        if code then
-            RegisterKeyBind(code, SafeCallback(function()
-                if Overlay and Overlay.IsOpen() then Overlay.OnKey(action) end
-            end))
-        end
-    end
 
     -- Standalone reroll that does NOT require opening the menu first.
     Bind(Config.keyRerollNow, Config.keyRerollNowMod, "R", function()
