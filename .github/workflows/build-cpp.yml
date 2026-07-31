@@ -38,7 +38,9 @@ jobs:
         uses: actions/checkout@v4
         with:
           repository: UE4SS-RE/RE-UE4SS
-          ref: ${{ github.event.inputs.ue4ss_ref || 'main' }}
+          # v3.0.1, not main: the DLL must be ABI-compatible with the UE4SS people
+          # actually run, and main's 'Re-UE4SS/UEPseudo' submodule currently 404s.
+          ref: ${{ github.event.inputs.ue4ss_ref || 'v3.0.1' }}
           submodules: recursive
           fetch-depth: 1
           path: mods/RE-UE4SS
