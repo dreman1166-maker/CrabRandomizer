@@ -1365,6 +1365,25 @@ Command("randomizeset", function(parts)
     end
 end)
 
+--- "I pressed Ctrl+K and nothing happened" has several very different causes and they are
+--- indistinguishable from the outside. This separates them.
+Command("randomizeoverlay", function(parts)
+    log("--- overlay diagnostics ---")
+    log("config overlay = %s", tostring(Config.overlay))
+
+    if not Config.overlay then
+        log("The overlay is switched OFF. Turn it on with:  randomizeset overlay true")
+        return
+    end
+    if Overlay == nil then
+        log("overlay.lua is NOT loaded. Check that overlay.lua sits next to main.lua in")
+        log("  Mods\\CrabRandomizer\\Scripts\\  and look further up this log for the reason.")
+        return
+    end
+
+    for _, line in ipairs(Overlay.Diag()) do log("%s", line) end
+end)
+
 Command("randomizepreset", function(parts)
     local name = parts[1]
     if not name or not Presets[name] then

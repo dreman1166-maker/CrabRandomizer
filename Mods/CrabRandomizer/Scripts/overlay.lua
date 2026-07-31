@@ -47,6 +47,14 @@ local ErrCount   = 0
 local Notice     = nil     -- transient line shown under the menu
 local NoticeTick = 0
 
+-- Diagnostics. Frames is the single most useful number here: if it is 0 the draw hook is
+-- never being reached at all, which is a completely different problem from the panel
+-- drawing wrongly, and no amount of staring at the layout code would reveal it.
+local Frames     = 0
+local Painted    = 0
+local HookNames  = {}
+local LastErr    = nil
+
 -- ===================== palette =====================
 -- FLinearColor is 0..1 floats, not 0..255.
 
@@ -323,28 +331,70 @@ end
 
 -- ===================== hook registration =====================
 
+local function DrawCallback(Context, SizeX, SizeY)
+    Frames = Frames + 1  -- counted BEFORE the early-out, so a closed menu still proves
+                         -- the hook is alive. This is the whole diagnostic.
+    if Disabled or not Open then return end
+
+    SafeDraw(nil, function()
+        local hud = Context:get()
+        if hud == nil then return end
+        local sx = SizeX and SizeX:get() or 1920
+        local sy = SizeY and SizeY:get() or 1080
+        if sx <= 0 or sy <= 0 then return end
+        Draw(hud, sx, sy)
+        Painted = Painted + 1
+    end)
+end
+
+--- ReceiveDrawHUD is a BlueprintImplementableEvent. If the game's HUD is a Blueprint
+--- subclass that overrides it, the UFunction actually invoked belongs to THAT class -
+--- /Game/.../BP_Hud_C:ReceiveDrawHUD - and a hook on /Script/Engine.HUD never fires.
+--- So hook the base AND whatever concrete HUD class is live right now.
+local function ConcreteHudHooks()
+    local names = {}
+    local ok = pcall(function()
+        local huds = FindAllOf("HUD")
+        if not huds then return end
+        local seen = {}
+        for _, h in ipairs(huds) do
+            local okName, cls = pcall(function() return h:GetClass():GetFullName() end)
+            if okName and cls then
+                -- GetFullName gives "Class /Script/Engine.HUD"; we want the path only.
+                local path = cls:match("^%S+%s+(.+)$") or cls
+                if not seen[path] then
+                    seen[path] = true
+                    names[#names + 1] = path .. ":ReceiveDrawHUD"
+                end
+            end
+        end
+    end)
+    if not ok then return {} end
+    return names
+end
+
 function M.Init(api)
     API = api
 
-    local ok, err = pcall(function()
-        RegisterHook("/Script/Engine.HUD:ReceiveDrawHUD", function(Context, SizeX, SizeY)
-            -- Cheapest possible early-out: closed or dead means one comparison per frame.
-            if Disabled or not Open then return end
+    local targets = { "/Script/Engine.HUD:ReceiveDrawHUD" }
+    for _, n in ipairs(ConcreteHudHooks()) do
+        if n ~= targets[1] then targets[#targets + 1] = n end
+    end
 
-            SafeDraw(nil, function()
-                local hud = Context:get()
-                if hud == nil then return end
-                local sx = SizeX and SizeX:get() or 1920
-                local sy = SizeY and SizeY:get() or 1080
-                if sx <= 0 or sy <= 0 then return end
-                Draw(hud, sx, sy)
-            end)
-        end)
-    end)
+    local any = false
+    for _, name in ipairs(targets) do
+        local ok, err = pcall(function() RegisterHook(name, DrawCallback) end)
+        if ok then
+            any = true
+            HookNames[#HookNames + 1] = name
+        else
+            LastErr = tostring(err)
+        end
+    end
 
-    if not ok then
+    if not any then
         Disabled = true
-        return false, tostring(err)
+        return false, LastErr or "no HUD draw hook could be registered"
     end
     return true
 end
@@ -352,6 +402,34 @@ end
 function M.Status()
     if Disabled then return "disabled (draw errors)" end
     return Open and "open" or "ready (closed)"
+end
+
+--- Human-readable answer to "I pressed Ctrl+K and nothing happened".
+function M.Diag()
+    local out = {}
+    out[#out + 1] = string.format("state        : %s", M.Status())
+    out[#out + 1] = string.format("menu open    : %s", tostring(Open))
+    out[#out + 1] = string.format("draw hook    : fired %d time(s)", Frames)
+    out[#out + 1] = string.format("panel painted: %d frame(s)", Painted)
+    out[#out + 1] = string.format("hooks        : %s",
+        (#HookNames > 0) and table.concat(HookNames, ", ") or "NONE REGISTERED")
+    if LastErr then out[#out + 1] = string.format("last error   : %s", LastErr) end
+
+    if Frames == 0 then
+        out[#out + 1] = ""
+        out[#out + 1] = "DIAGNOSIS: the draw hook has never fired, so the game is not"
+        out[#out + 1] = "reaching AHUD::DrawHUD at all (common when a game renders its"
+        out[#out + 1] = "entire HUD through UMG widgets). The keybind and menu logic are"
+        out[#out + 1] = "fine - there is simply nothing calling us to draw into."
+    elseif Frames > 0 and Open and Painted == 0 then
+        out[#out + 1] = ""
+        out[#out + 1] = "DIAGNOSIS: the hook fires but painting failed - see last error."
+    elseif Frames > 0 and Painted > 0 then
+        out[#out + 1] = ""
+        out[#out + 1] = "DIAGNOSIS: the overlay IS drawing. If you cannot see it, the game's"
+        out[#out + 1] = "own UI is drawing over the top of it."
+    end
+    return out
 end
 
 return M
