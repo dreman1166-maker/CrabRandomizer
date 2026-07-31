@@ -1,0 +1,23 @@
+# node
+tools/node_modules/
+tools/sandbox/
+tools/package-lock.json
+
+# build output
+dist/
+*.zip
+
+# local runtime artifacts (never commit a user's tuned config or logs)
+**/crabrandomizer.log
+**/crabrandomizer-dump.txt
+**/randoconfig.txt.bak
+*.orig.bak
+
+# crash dumps
+*.dmp
+
+# editors / os
+.vscode/
+.idea/
+Thumbs.db
+desktop.ini

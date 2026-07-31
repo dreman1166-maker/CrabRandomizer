@@ -1,0 +1,75 @@
+; CrabRandomizer config
+;
+; Easiest way to change these is in-game: open the console with F10 and run
+;   randomizepreset default        (or: off / gentle / chaos / mirror / swap)
+; Presets and the Ctrl+K quick menu both rewrite this file, so changes persist.
+; Individual settings: randomizeset <key> <value>
+
+; ---------- what gets shuffled ----------
+; These swap the mod/perk/relic sitting in each slot you already own. Grenade mods may
+; not exist in every build - if not, that one line is ignored and the mod says so.
+randomizeWeaponMods=true
+randomizeAbilityMods=true
+randomizeMeleeMods=true
+randomizeGrenadeMods=true
+randomizePerks=true
+randomizeRelics=true
+
+; These reroll your BASE weapon / ability / melee type - a much bigger swing.
+randomizeWeapon=false
+randomizeAbility=false
+randomizeMelee=false
+
+; ---------- how it rolls ----------
+; weighted     = rarityWeight1-4 below bias the roll (commons more common)
+; withinRarity = only ever reroll into the same rarity tier the slot already had
+; uniform      = every candidate equally likely, weights ignored
+; (Replaces the old randomizeWithinRarity setting, which is auto-migrated if present.)
+rollMode=weighted
+
+; Relative odds per rarity tier, 1=common .. 4=legendary. Only used by rollMode=weighted.
+rarityWeight1=50
+rarityWeight2=25
+rarityWeight3=15
+rarityWeight4=10
+
+; Never roll below this rarity (1 = no floor). Ignored automatically if it would leave
+; a slot with zero valid options.
+minimumRarity=1
+
+; How many islands YOU personally clear before your gear reshuffles.
+islandsBeforeRandomizing=6
+
+; 0 = normal randomness. Any other number fixes the RNG for reproducible runs.
+; For matching rolls in co-op, both players need the same seed AND the same rollMode.
+randomSeed=0
+
+; ---------- co-op ----------
+; independent = everyone rolls their own loadout
+; mirror      = roll once, everyone gets the SAME result
+; swap        = players TRADE existing loadouts with each other (nothing is rolled)
+; Only the HOST has authority in co-op - see README. Run 'randomizeauthority' to check.
+coopMode=independent
+
+; Announce shuffles in in-game chat. UNVERIFIED - the API exists in this build but the
+; call has not been observed working. Off by default; check the log if it does nothing.
+announceInChat=false
+
+; ---------- diagnostics ----------
+; Mirror all mod output to Scripts/crabrandomizer.log (console scrollback is limited).
+logToFile=false
+
+; Log what WOULD change without actually changing anything. Useful for tuning weights.
+dryRun=false
+
+; ---------- keybinds ----------
+; Any UE4SS key name (K, R, F1, NUM_ONE...). Modifier: CONTROL / ALT / SHIFT / NONE.
+keyQuickMenu=K
+keyQuickMenuMod=CONTROL
+keyRerollNow=R
+keyRerollNowMod=CONTROL
+
+; Milliseconds to wait after an island clear before shuffling. The transition destroys
+; and respawns pawns, and mutating player state during that window crashed joining
+; clients. Leave this alone unless you know why you're changing it. 0 = immediate.
+shuffleDelayMs=2500

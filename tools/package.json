@@ -1,0 +1,13 @@
+{
+  "name": "crabrandomizer-tools",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Mocked-UE4SS test harness for CrabRandomizer",
+  "scripts": {
+    "test": "node runtests.js ../Mods/CrabRandomizer/Scripts/main.lua",
+    "check": "node check.js ../Mods/CrabRandomizer/Scripts/main.lua"
+  },
+  "dependencies": {
+    "fengari": "^0.1.4"
+  }
+}

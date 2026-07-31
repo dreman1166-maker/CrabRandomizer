@@ -1,0 +1,43 @@
+name: tests
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install harness deps
+        working-directory: tools
+        run: npm install
+
+      # Catches syntax errors without executing UE4SS-only globals.
+      - name: Lua syntax check
+        working-directory: tools
+        run: node check.js ../Mods/CrabRandomizer/Scripts/main.lua
+
+      # Loads the real main.lua against a mocked UE4SS and exercises it.
+      - name: Test suite
+        working-directory: tools
+        run: node runtests.js ../Mods/CrabRandomizer/Scripts/main.lua
+
+      # The version in main.lua is the source of truth; docs must not drift from it.
+      - name: Version consistency
+        shell: bash
+        run: |
+          v=$(grep -oP 'local MOD_VERSION = "\K[^"]+' Mods/CrabRandomizer/Scripts/main.lua)
+          echo "main.lua declares $v"
+          if ! grep -q "## \[$v\]" CHANGELOG.md; then
+            echo "::error::CHANGELOG.md has no '## [$v]' entry for the version in main.lua"
+            exit 1
+          fi
+          echo "CHANGELOG has an entry for $v"
