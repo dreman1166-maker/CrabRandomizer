@@ -80,3 +80,7 @@ shuffleDelayMs=2500
 ; UMG widget cooked with the game modkit.
 chatCommands=true
 chatPrefix=!rand
+
+; Listen for the optional CrabRandomizerUI C++ mod (the clickable ImGui menu).
+; Harmless if that mod isn't installed - nothing ever sends a command.
+uiBridge=true

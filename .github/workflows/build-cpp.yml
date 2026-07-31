@@ -1,0 +1,128 @@
+# Builds the optional CrabRandomizerUI C++ mod (the clickable ImGui menu).
+#
+# Separate from tests.yml on purpose: this clones and compiles the whole RE-UE4SS source
+# tree, which is slow and depends on an external repo. A failure here must never gate the
+# Lua mod, which is the actual product.
+#
+# Manual trigger by default - there's no reason to spend 30+ minutes of CI on every push
+# to a Lua file.
+
+name: build-cpp-ui
+
+on:
+  workflow_dispatch:
+    inputs:
+      ue4ss_ref:
+        description: "RE-UE4SS branch/tag to build against"
+        required: false
+        default: "main"
+  push:
+    paths:
+      - 'cpp/**'
+      - '.github/workflows/build-cpp.yml'
+
+jobs:
+  build:
+    runs-on: windows-latest
+    timeout-minutes: 90
+
+    steps:
+      - name: Checkout this repo
+        uses: actions/checkout@v4
+        with:
+          path: mods/CrabRandomizerUI-src
+
+      # UE4SS's guide requires the mod to sit BESIDE the RE-UE4SS checkout, and the mod's
+      # CMakeLists links the UE4SS target, so both must be in one CMake project.
+      - name: Checkout RE-UE4SS
+        uses: actions/checkout@v4
+        with:
+          repository: UE4SS-RE/RE-UE4SS
+          ref: ${{ github.event.inputs.ue4ss_ref || 'main' }}
+          submodules: recursive
+          fetch-depth: 1
+          path: mods/RE-UE4SS
+
+      - name: Place the mod where UE4SS expects it
+        shell: bash
+        run: |
+          mkdir -p mods/CrabRandomizerUI
+          cp mods/CrabRandomizerUI-src/cpp/dllmain.cpp     mods/CrabRandomizerUI/
+          cp mods/CrabRandomizerUI-src/cpp/CMakeLists.txt  mods/CrabRandomizerUI/
+          ls -la mods/CrabRandomizerUI
+
+      - uses: ilammy/msvc-dev-cmd@v1
+
+      - name: Install Ninja
+        run: choco install ninja -y
+
+      # UE4SS's own CMake picks up sibling mod directories; if it doesn't, the explicit
+      # add_subdirectory below covers it.
+      - name: Wire the mod into the UE4SS build
+        shell: bash
+        run: |
+          cd mods/RE-UE4SS
+          if ! grep -q "CrabRandomizerUI" CMakeLists.txt; then
+            echo "" >> CMakeLists.txt
+            echo "# added by CI" >> CMakeLists.txt
+            echo "add_subdirectory(\"\${CMAKE_CURRENT_SOURCE_DIR}/../CrabRandomizerUI\" CrabRandomizerUI)" >> CMakeLists.txt
+          fi
+          tail -5 CMakeLists.txt
+
+      - name: Configure
+        working-directory: mods/RE-UE4SS
+        run: cmake -B build -G Ninja -DCMAKE_BUILD_TYPE=Game__Shipping__Win64
+
+      - name: Build
+        working-directory: mods/RE-UE4SS
+        run: cmake --build build --target CrabRandomizerUI
+
+      - name: Locate the DLL
+        id: find
+        shell: bash
+        run: |
+          dll=$(find mods/RE-UE4SS/build -name "CrabRandomizerUI.dll" | head -1)
+          if [ -z "$dll" ]; then
+            echo "::error::CrabRandomizerUI.dll was not produced"
+            find mods/RE-UE4SS/build -name "*.dll" | head -20
+            exit 1
+          fi
+          echo "dll=$dll" >> $GITHUB_OUTPUT
+          echo "Found $dll"
+
+      # UE4SS expects a C++ mod at Mods/<Name>/dlls/main.dll
+      - name: Package
+        shell: bash
+        run: |
+          mkdir -p out/Mods/CrabRandomizerUI/dlls
+          cp "${{ steps.find.outputs.dll }}" out/Mods/CrabRandomizerUI/dlls/main.dll
+          printf 'CrabRandomizerUI : 1\n' > out/ADD-THIS-LINE-TO-mods.txt
+          cat > out/README.txt <<'EOF'
+          CrabRandomizerUI - clickable menu for CrabRandomizer
+          ===================================================
+
+          This is OPTIONAL. The Lua mod works without it.
+
+          It adds a "CrabRandomizer" tab with checkboxes, sliders and buttons to
+          UE4SS's debug window. It does NOT draw over the game - UE4SS provides no
+          API for that. A true in-game overlay would need a UMG widget cooked into a
+          .pak with the Crab Champions modkit.
+
+          INSTALL
+            1. Copy Mods\CrabRandomizerUI into ...\Binaries\Win64\Mods\
+            2. Add this line to ...\Binaries\Win64\Mods\mods.txt :
+                 CrabRandomizerUI : 1
+            3. In UE4SS-settings.ini set:
+                 GuiConsoleVisible = 1
+                 GraphicsAPI = dx11        (opengl renders blank on some machines)
+            4. Launch. The tab appears in the UE4SS Debugging Tools window.
+
+          Requires the CrabRandomizer Lua mod installed and enabled - this only
+          edits its config and sends it commands.
+          EOF
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: CrabRandomizerUI-dll
+          path: out/**
+          if-no-files-found: error

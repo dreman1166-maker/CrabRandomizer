@@ -146,6 +146,10 @@ Config = {
     chatCommands = true,
     chatPrefix = "!rand",
 
+    -- Poll for commands from the optional CrabRandomizerUI C++ mod (the ImGui menu).
+    -- Harmless with no C++ mod installed: it just never finds a command file.
+    uiBridge = true,
+
     -- Milliseconds to wait after an island clear before shuffling. The transition
     -- destroys and respawns pawns; touching player state during that window is what
     -- crashed clients. 0 = shuffle immediately (old behaviour, NOT recommended).
@@ -165,7 +169,7 @@ local CONFIG_KEY_ORDER = {
     "islandsBeforeRandomizing", "minimumRarity", "randomSeed",
     "rarityWeight1", "rarityWeight2", "rarityWeight3", "rarityWeight4",
     "announceInChat", "logToFile", "dryRun", "shuffleDelayMs",
-    "chatCommands", "chatPrefix",
+    "chatCommands", "chatPrefix", "uiBridge",
     "keyQuickMenu", "keyQuickMenuMod", "keyRerollNow", "keyRerollNowMod",
 }
 
@@ -1524,6 +1528,77 @@ do
     if not ok then
         log("Could not hook the chat box (in-game chat commands unavailable): %s", tostring(err))
     end
+end
+
+-- ===================== C++ UI bridge =====================
+--
+-- Optional companion mod (CrabRandomizerUI) draws a real ImGui menu, which Lua cannot do
+-- itself. It talks to us through files rather than any UE4SS-internal interop, so a
+-- UE4SS update can't silently break the link and neither mod needs the other to exist:
+--   randoconfig.txt  settings (already our own format)
+--   uicommand.txt    a one-line action we consume and delete
+--
+-- Polling only starts if the command file appears, so there is no cost when the C++ mod
+-- isn't installed.
+
+local UI_COMMAND_FILE = "uicommand.txt"
+
+local function ReadAndClearUICommand()
+    local base = ResolvedBasePath or BASE_PATHS[1]
+    local path = base .. UI_COMMAND_FILE
+    local f = io.open(path, "r")
+    if not f then return nil end
+    local line = f:read("*l")
+    f:close()
+    -- Consume it so the action fires exactly once.
+    os.remove(path)
+    if line == nil then return nil end
+    return (line:gsub("^%s+", ""):gsub("%s+$", ""))
+end
+
+local function HandleUICommand(cmd)
+    if cmd == nil or cmd == "" then return end
+    local verb, arg = cmd:match("^(%S+)%s*(.*)$")
+    verb = (verb or ""):lower()
+
+    if verb == "now" then
+        log("UI: reroll requested")
+        RefreshAllPools()
+        RandomizeEveryone()
+    elseif verb == "undo" then
+        log("UI: undo requested")
+        UndoLastShuffle()
+    elseif verb == "reload" then
+        LoadConfig()
+        ApplySeed()
+        log("UI: config reloaded (islands=%d rollMode=%s coopMode=%s)",
+            Config.islandsBeforeRandomizing, Config.rollMode, Config.coopMode)
+    elseif verb == "preset" then
+        local name = arg:match("^%S*")
+        if name and Presets[name] then
+            ApplyPreset(name)
+            SaveConfig()
+            log("UI: applied preset '%s'", name)
+        else
+            log("UI: unknown preset '%s'", tostring(name))
+        end
+    else
+        log("UI: unknown command '%s'", tostring(verb))
+    end
+end
+
+if Config.uiBridge then
+    local ok = pcall(function()
+        LoopAsync(500, function()
+            local okPoll, err = pcall(function()
+                local cmd = ReadAndClearUICommand()
+                if cmd then HandleUICommand(cmd) end
+            end)
+            if not okPoll then log("UI bridge error: %s", tostring(err)) end
+            return false -- keep looping
+        end)
+    end)
+    if not ok then log("Could not start the UI bridge poll loop (C++ menu will not work)") end
 end
 
 -- ===================== Keybinds =====================
