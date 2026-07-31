@@ -3,327 +3,317 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>CrabRandomizer - mod menu mockup</title>
+<title>CrabRandomizer - mod menu mockup v2</title>
 <style>
   :root{
-    --bg:#071016;
-    --panel:rgba(10,22,30,.92);
-    --panel-solid:#0b1a23;
-    --edge:rgba(255,255,255,.10);
-    --edge-hot:rgba(255,146,60,.55);
-    --txt:#e9f3f7;
-    --dim:#8ba6b4;
-    --dimmer:#5d7986;
+    --bg:#060e14;
+    --panel:rgba(9,20,28,.94);
+    --solid:#0a1821;
+    --raise:#0e2029;
+    --edge:rgba(255,255,255,.09);
+    --edge2:rgba(255,255,255,.16);
+    --hot:rgba(255,146,60,.5);
+    --txt:#eaf4f8;
+    --dim:#8fa9b7;
+    --dimmer:#5f7c8a;
+    --faint:#3d5663;
     --orange:#ff8b3d;
-    --orange-soft:rgba(255,139,61,.14);
     --teal:#34d8c4;
-    --teal-soft:rgba(52,216,196,.13);
     --coral:#ff5d6c;
     --gold:#ffd45e;
     --purple:#b07cff;
     --ok:#5ddb8a;
+    --blue:#57b8ff;
     --mono:'JetBrains Mono',ui-monospace,'Cascadia Code',Consolas,monospace;
     --sans:'Inter',system-ui,-apple-system,'Segoe UI',sans-serif;
+    --r:9px;
+    --t:.15s cubic-bezier(.3,.8,.4,1);
+  }
+  @media (prefers-reduced-motion:reduce){
+    *,*::before,*::after{animation-duration:.01ms!important;transition-duration:.01ms!important}
   }
   *{box-sizing:border-box;margin:0;padding:0}
   body{
     font-family:var(--sans);background:var(--bg);color:var(--txt);
-    min-height:100vh;padding:24px 16px;line-height:1.5;
-    -webkit-font-smoothing:antialiased;
+    min-height:100vh;padding:26px 16px 48px;line-height:1.5;
+    -webkit-font-smoothing:antialiased;text-rendering:optimizeLegibility;
   }
-  .wrap{max-width:1180px;margin:0 auto}
+  .wrap{max-width:1240px;margin:0 auto}
+  :focus-visible{outline:2px solid var(--orange);outline-offset:2px;border-radius:4px}
 
-  /* ---------- page header ---------- */
-  .page-head{margin-bottom:20px}
-  .page-head h1{
-    font-size:clamp(20px,3vw,28px);font-weight:650;letter-spacing:-.02em;
-    display:flex;align-items:center;gap:11px;flex-wrap:wrap;
-  }
-  .page-head h1 .ver{
-    font-family:var(--mono);font-size:12px;font-weight:500;color:var(--orange);
-    background:var(--orange-soft);border:1px solid var(--edge-hot);
-    padding:3px 9px;border-radius:999px;letter-spacing:0;
-  }
-  .page-head p{color:var(--dim);font-size:14px;margin-top:7px;max-width:78ch}
-  .page-head p b{color:var(--txt);font-weight:600}
+  /* ---------------- page header ---------------- */
+  .ph{margin-bottom:22px}
+  .ph h1{font-size:clamp(21px,3vw,30px);font-weight:660;letter-spacing:-.025em;
+         display:flex;align-items:center;gap:11px;flex-wrap:wrap}
+  .tag{font-family:var(--mono);font-size:11.5px;font-weight:500;color:var(--orange);
+       background:rgba(255,139,61,.13);border:1px solid var(--hot);
+       padding:3px 9px;border-radius:999px;letter-spacing:0}
+  .ph p{color:var(--dim);font-size:14px;margin-top:8px;max-width:80ch}
+  .ph p b{color:var(--txt);font-weight:600}
 
-  /* ---------- the faux game viewport ---------- */
-  .viewport{
-    position:relative;border-radius:14px;overflow:hidden;
-    border:1px solid var(--edge);
+  /* ---------------- game viewport ---------------- */
+  .vp{
+    position:relative;border-radius:14px;overflow:hidden;border:1px solid var(--edge);
     background:
-      radial-gradient(120% 80% at 22% 8%, #ffb765 0%, #ff8a4c 16%, #e8613f 32%, transparent 62%),
-      radial-gradient(90% 70% at 84% 22%, #59d5e8 0%, #2a93bd 34%, transparent 68%),
-      linear-gradient(180deg,#1a5f86 0%,#12455f 42%,#0d3348 68%,#0a2231 100%);
-    min-height:660px;padding:22px;
-    display:flex;align-items:flex-start;justify-content:center;
+      radial-gradient(115% 78% at 20% 6%, #ffc178 0%, #ff8f52 15%, #e8613f 30%, transparent 60%),
+      radial-gradient(85% 65% at 86% 20%, #62dcef 0%, #2a93bd 32%, transparent 66%),
+      linear-gradient(180deg,#1b6389 0%,#124760 40%,#0c3346 66%,#092130 100%);
+    min-height:700px;padding:20px;display:flex;justify-content:center;align-items:flex-start;
   }
-  /* horizon + water shimmer, purely decorative */
-  .viewport::before{
-    content:"";position:absolute;left:0;right:0;top:48%;bottom:0;
-    background:linear-gradient(180deg,rgba(255,214,150,.20),rgba(10,40,60,.05) 30%,transparent 70%);
-    pointer-events:none;
-  }
-  .viewport::after{
-    content:"";position:absolute;inset:0;pointer-events:none;
-    background:repeating-linear-gradient(180deg,rgba(255,255,255,.028) 0 1px,transparent 1px 3px);
-    mix-blend-mode:overlay;
-  }
-  /* dim + blur behind the menu, the way a real pause overlay does */
-  .scrim{position:absolute;inset:0;background:rgba(4,12,18,.52);backdrop-filter:blur(2.5px)}
+  .vp::before{content:"";position:absolute;left:0;right:0;top:46%;bottom:0;pointer-events:none;
+    background:linear-gradient(180deg,rgba(255,216,155,.22),rgba(10,40,60,.04) 28%,transparent 66%)}
+  .vp::after{content:"";position:absolute;inset:0;pointer-events:none;mix-blend-mode:overlay;
+    background:repeating-linear-gradient(180deg,rgba(255,255,255,.025) 0 1px,transparent 1px 3px)}
+  .scrim{position:absolute;inset:0;background:rgba(3,10,16,.55);backdrop-filter:blur(3px)}
 
-  /* fake HUD so scale reads correctly */
-  .hud{position:absolute;pointer-events:none;font-family:var(--mono);font-size:11px;
-       color:rgba(255,255,255,.78);text-shadow:0 1px 3px rgba(0,0,0,.6);z-index:1}
-  .hud-tl{top:16px;left:18px;display:flex;flex-direction:column;gap:5px}
-  .hud-tr{top:16px;right:18px;text-align:right}
-  .hud-bl{bottom:16px;left:18px}
-  .hud-chip{background:rgba(0,0,0,.42);border:1px solid rgba(255,255,255,.16);
-            border-radius:5px;padding:3px 8px;display:inline-block}
-  .hp{width:170px;height:9px;border-radius:5px;background:rgba(0,0,0,.5);
+  .hud{position:absolute;pointer-events:none;font-family:var(--mono);font-size:11px;z-index:1;
+       color:rgba(255,255,255,.8);text-shadow:0 1px 3px rgba(0,0,0,.7)}
+  .hud-tl{top:15px;left:17px;display:flex;flex-direction:column;gap:5px}
+  .hud-tr{top:15px;right:17px}
+  .chip{background:rgba(0,0,0,.45);border:1px solid rgba(255,255,255,.15);
+        border-radius:5px;padding:3px 8px;display:inline-block}
+  .hp{width:165px;height:8px;border-radius:5px;background:rgba(0,0,0,.55);
       border:1px solid rgba(255,255,255,.2);overflow:hidden}
-  .hp i{display:block;height:100%;width:72%;background:linear-gradient(90deg,#ff5d6c,#ff9d5c)}
+  .hp i{display:block;height:100%;width:68%;background:linear-gradient(90deg,#ff5d6c,#ff9d5c)}
 
-  /* ---------- the menu itself ---------- */
+  /* ---------------- menu shell ---------------- */
   .menu{
-    position:relative;z-index:2;width:100%;max-width:940px;
-    background:var(--panel);
-    border:1px solid var(--edge);
-    border-radius:12px;
-    box-shadow:0 28px 70px rgba(0,0,0,.62),0 0 0 1px rgba(255,255,255,.045) inset;
-    backdrop-filter:blur(14px) saturate(1.15);
-    overflow:hidden;
-    animation:pop .18s cubic-bezier(.2,.9,.3,1.2);
+    position:relative;z-index:2;width:100%;max-width:1010px;background:var(--panel);
+    border:1px solid var(--edge);border-radius:12px;overflow:hidden;
+    box-shadow:0 30px 76px rgba(0,0,0,.68),0 0 0 1px rgba(255,255,255,.04) inset;
+    backdrop-filter:blur(16px) saturate(1.2);
+    animation:pop .2s cubic-bezier(.2,.9,.3,1.15);
   }
-  @keyframes pop{from{opacity:0;transform:translateY(-8px) scale(.985)}to{opacity:1;transform:none}}
+  @keyframes pop{from{opacity:0;transform:translateY(-9px) scale(.985)}to{opacity:1;transform:none}}
 
-  /* title bar */
-  .bar{
-    display:flex;align-items:center;gap:12px;padding:12px 16px;
-    background:linear-gradient(180deg,rgba(255,139,61,.16),rgba(255,139,61,.04));
-    border-bottom:1px solid var(--edge);
-  }
-  .crab{font-size:19px;filter:drop-shadow(0 2px 5px rgba(255,110,40,.6))}
-  .bar h2{font-size:14.5px;font-weight:650;letter-spacing:.01em;flex:0 0 auto}
-  .bar .v{font-family:var(--mono);font-size:11px;color:var(--orange);opacity:.95}
-  .bar .spacer{flex:1}
-  .live{
-    display:flex;align-items:center;gap:6px;font-family:var(--mono);font-size:11px;color:var(--dim);
-    background:rgba(0,0,0,.3);border:1px solid var(--edge);border-radius:999px;padding:4px 11px;
-  }
-  .dot{width:6px;height:6px;border-radius:50%;background:var(--ok);box-shadow:0 0 8px var(--ok)}
-  .esc{font-family:var(--mono);font-size:10.5px;color:var(--dimmer);
-       border:1px solid var(--edge);border-radius:5px;padding:3px 7px}
+  .bar{display:flex;align-items:center;gap:11px;padding:11px 15px;border-bottom:1px solid var(--edge);
+       background:linear-gradient(180deg,rgba(255,139,61,.17),rgba(255,139,61,.03))}
+  .bar .crab{font-size:19px;filter:drop-shadow(0 2px 6px rgba(255,110,40,.65))}
+  .bar h2{font-size:14.5px;font-weight:660;letter-spacing:.005em}
+  .bar .v{font-family:var(--mono);font-size:11px;color:var(--orange)}
+  .bar .sp{flex:1}
+  .live{display:flex;align-items:center;gap:6px;font-family:var(--mono);font-size:10.5px;
+        color:var(--dim);background:rgba(0,0,0,.32);border:1px solid var(--edge);
+        border-radius:999px;padding:4px 11px}
+  .dot{width:6px;height:6px;border-radius:50%;background:var(--ok);box-shadow:0 0 8px var(--ok);
+       animation:pulse 2.4s ease-in-out infinite}
+  @keyframes pulse{0%,100%{opacity:1}50%{opacity:.45}}
+  .esc{font-family:var(--mono);font-size:10px;color:var(--dimmer);border:1px solid var(--edge);
+       border-radius:5px;padding:3px 7px}
 
-  /* status strip */
-  .strip{
-    display:grid;grid-template-columns:repeat(auto-fit,minmax(128px,1fr));
-    gap:1px;background:var(--edge);border-bottom:1px solid var(--edge);
-  }
-  .stat{background:var(--panel-solid);padding:9px 13px}
-  .stat .k{font-size:9.5px;text-transform:uppercase;letter-spacing:.09em;color:var(--dimmer);font-weight:600}
-  .stat .v{font-family:var(--mono);font-size:13px;margin-top:3px;color:var(--txt)}
-  .stat .v.hot{color:var(--orange)}
-  .stat .v.cool{color:var(--teal)}
-  .stat .v.warn{color:var(--gold)}
+  /* ---------------- status strip ---------------- */
+  .strip{display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));
+         gap:1px;background:var(--edge);border-bottom:1px solid var(--edge)}
+  .st{background:var(--solid);padding:8px 13px}
+  .st .k{font-size:9px;text-transform:uppercase;letter-spacing:.1em;color:var(--dimmer);font-weight:700}
+  .st .v{font-family:var(--mono);font-size:13px;margin-top:2px;transition:color var(--t)}
+  .st .v.hot{color:var(--orange)}.st .v.cool{color:var(--teal)}
+  .st .v.warn{color:var(--gold)}.st .v.pur{color:var(--purple)}
 
-  /* body columns */
-  .body{display:grid;grid-template-columns:1.32fr 1fr;gap:0}
+  /* ---------------- LOADOUT STAGE (the new centrepiece) ---------------- */
+  .stage{padding:14px 15px;border-bottom:1px solid var(--edge);
+         background:linear-gradient(180deg,rgba(255,255,255,.022),transparent)}
+  .stage-head{display:flex;align-items:center;gap:9px;margin-bottom:10px}
+  .stage-head h3{font-size:10px;text-transform:uppercase;letter-spacing:.11em;
+                 color:var(--dimmer);font-weight:700}
+  .stage-head .flag{font-family:var(--mono);font-size:10px;padding:2px 8px;border-radius:999px;
+                    border:1px solid var(--edge);color:var(--dim);transition:var(--t)}
+  .stage-head .flag.mirror{color:var(--purple);border-color:rgba(176,124,255,.5);
+                           background:rgba(176,124,255,.12)}
+  .stage-head .flag.swap{color:var(--gold);border-color:rgba(255,212,94,.45);
+                         background:rgba(255,212,94,.1)}
+  .stage-head .sp{flex:1}
+  .stage-head .eq{font-family:var(--mono);font-size:10.5px;color:var(--ok);opacity:0;transition:var(--t)}
+  .stage-head .eq.show{opacity:1}
+
+  .players{display:grid;grid-template-columns:1fr auto 1fr;gap:11px;align-items:stretch}
+  @media(max-width:780px){.players{grid-template-columns:1fr}.linkcol{display:none}}
+
+  .pcard{background:var(--solid);border:1px solid var(--edge);border-radius:var(--r);
+         padding:10px 12px;transition:var(--t);position:relative;overflow:hidden}
+  .pcard.hl{border-color:rgba(176,124,255,.45);box-shadow:0 0 0 1px rgba(176,124,255,.2)}
+  .pcard .who{display:flex;align-items:center;gap:7px;margin-bottom:8px}
+  .pcard .who i{width:7px;height:7px;border-radius:50%;flex:0 0 auto}
+  .p1 .who i{background:var(--teal);box-shadow:0 0 7px var(--teal)}
+  .p2 .who i{background:var(--coral);box-shadow:0 0 7px var(--coral)}
+  .pcard .who b{font-size:12px;font-weight:640}
+  .pcard .who .role{font-family:var(--mono);font-size:9.5px;color:var(--dimmer);margin-left:auto}
+
+  .gear{display:flex;flex-direction:column;gap:4px}
+  .g{display:flex;align-items:center;gap:8px;padding:4px 6px;border-radius:5px;
+     background:rgba(255,255,255,.028);border:1px solid transparent;transition:var(--t)}
+  .g .sl{font-family:var(--mono);font-size:8.5px;color:var(--faint);text-transform:uppercase;
+         letter-spacing:.07em;width:52px;flex:0 0 auto}
+  .g .nm{font-size:12px;flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .g .rr{width:5px;height:5px;border-radius:50%;flex:0 0 auto}
+  .r1{background:#b8c9d2}.r2{background:var(--ok)}.r3{background:var(--blue)}.r4{background:var(--purple)}
+  .n1{color:#c3d2da}.n2{color:var(--ok)}.n3{color:var(--blue)}.n4{color:var(--purple)}
+  .g.rolled{animation:flash .5s ease-out}
+  @keyframes flash{
+    0%{background:rgba(255,139,61,.3);border-color:var(--hot)}
+    100%{background:rgba(255,255,255,.028);border-color:transparent}
+  }
+  .g.rolling .nm{color:var(--orange);opacity:.75}
+
+  /* the link column between players — shows what the co-op mode does */
+  .linkcol{display:flex;flex-direction:column;align-items:center;justify-content:center;
+           gap:5px;width:52px;padding-top:22px}
+  .linkcol svg{width:44px;height:52px;overflow:visible}
+  .linkcol .cap{font-family:var(--mono);font-size:8.5px;color:var(--dimmer);text-align:center;
+                line-height:1.3}
+  .lk{stroke-width:1.6;fill:none;stroke-linecap:round;opacity:.85}
+  .lk.a{stroke:var(--teal)}.lk.b{stroke:var(--coral)}.lk.m{stroke:var(--purple)}
+
+  /* ---------------- body columns ---------------- */
+  .body{display:grid;grid-template-columns:1.25fr 1fr}
   @media(max-width:860px){.body{grid-template-columns:1fr}}
-  .col{padding:15px 17px}
+  .col{padding:14px 15px;min-width:0}
   .col+.col{border-left:1px solid var(--edge)}
   @media(max-width:860px){.col+.col{border-left:0;border-top:1px solid var(--edge)}}
-
-  .sect{margin-bottom:17px}
+  .sect{margin-bottom:16px}
   .sect:last-child{margin-bottom:0}
-  .sect>h3{
-    font-size:10px;text-transform:uppercase;letter-spacing:.11em;color:var(--dimmer);
-    font-weight:700;margin-bottom:9px;display:flex;align-items:center;gap:8px;
-  }
+  .sect>h3{font-size:9.5px;text-transform:uppercase;letter-spacing:.11em;color:var(--dimmer);
+           font-weight:700;margin-bottom:8px;display:flex;align-items:center;gap:8px}
   .sect>h3::after{content:"";flex:1;height:1px;background:var(--edge)}
+  .sect>h3 .n{font-family:var(--mono);color:var(--faint);letter-spacing:0}
 
   /* presets */
-  .presets{display:flex;flex-wrap:wrap;gap:6px}
-  .preset{
-    font-family:var(--mono);font-size:11.5px;color:var(--dim);cursor:pointer;
-    background:rgba(255,255,255,.032);border:1px solid var(--edge);
-    border-radius:6px;padding:6px 11px;transition:.13s;
-  }
-  .preset:hover{color:var(--txt);border-color:rgba(255,255,255,.24);background:rgba(255,255,255,.07)}
-  .preset.on{background:var(--orange-soft);border-color:var(--edge-hot);color:var(--orange);font-weight:600}
+  .presets{display:flex;flex-wrap:wrap;gap:5px}
+  .preset{font-family:var(--mono);font-size:11px;color:var(--dim);cursor:pointer;
+          background:rgba(255,255,255,.03);border:1px solid var(--edge);
+          border-radius:6px;padding:6px 10px;transition:var(--t)}
+  .preset:hover{color:var(--txt);border-color:var(--edge2);background:rgba(255,255,255,.075)}
+  .preset.on{background:rgba(255,139,61,.15);border-color:var(--hot);color:var(--orange);font-weight:600}
 
-  /* toggle rows */
-  .toggles{display:flex;flex-direction:column;gap:3px}
-  .tg{
-    display:flex;align-items:center;gap:10px;cursor:pointer;
-    padding:6px 9px;border-radius:6px;border:1px solid transparent;transition:.12s;
-  }
-  .tg:hover{background:rgba(255,255,255,.04);border-color:var(--edge)}
-  .sw{
-    flex:0 0 32px;height:17px;border-radius:999px;position:relative;
-    background:rgba(255,255,255,.10);border:1px solid var(--edge);transition:.16s;
-  }
-  .sw::after{
-    content:"";position:absolute;top:1.5px;left:2px;width:11px;height:11px;border-radius:50%;
-    background:var(--dimmer);transition:.16s;
-  }
-  .tg.on .sw{background:var(--teal-soft);border-color:rgba(52,216,196,.5)}
-  .tg.on .sw::after{transform:translateX(14px);background:var(--teal);box-shadow:0 0 9px var(--teal)}
-  .tg .lbl{flex:1;font-size:13px}
+  /* toggles */
+  .toggles{display:flex;flex-direction:column;gap:2px}
+  .tg{display:flex;align-items:center;gap:9px;cursor:pointer;padding:5px 8px;
+      border-radius:6px;border:1px solid transparent;transition:var(--t)}
+  .tg:hover{background:rgba(255,255,255,.045);border-color:var(--edge)}
+  .sw{flex:0 0 30px;height:16px;border-radius:999px;position:relative;
+      background:rgba(255,255,255,.09);border:1px solid var(--edge);transition:var(--t)}
+  .sw::after{content:"";position:absolute;top:1.5px;left:2px;width:10px;height:10px;
+             border-radius:50%;background:var(--dimmer);transition:var(--t)}
+  .tg.on .sw{background:rgba(52,216,196,.15);border-color:rgba(52,216,196,.5)}
+  .tg.on .sw::after{transform:translateX(13px);background:var(--teal);box-shadow:0 0 8px var(--teal)}
+  .tg .lbl{flex:1;font-size:12.5px;color:var(--dim);transition:var(--t)}
   .tg.on .lbl{color:var(--txt)}
-  .tg:not(.on) .lbl{color:var(--dim)}
-  .tg .cnt{font-family:var(--mono);font-size:10px;color:var(--dimmer)}
-  .kbd{
-    font-family:var(--mono);font-size:9.5px;color:var(--dimmer);
-    border:1px solid var(--edge);border-radius:4px;padding:2px 5px;background:rgba(0,0,0,.28);
-  }
-  .divider-lbl{font-size:9.5px;color:var(--dimmer);text-transform:uppercase;
-               letter-spacing:.09em;margin:9px 0 5px;font-weight:600;padding-left:9px}
+  .tg .cnt{font-family:var(--mono);font-size:9.5px;color:var(--faint)}
+  .kbd{font-family:var(--mono);font-size:9px;color:var(--dimmer);border:1px solid var(--edge);
+       border-radius:4px;padding:2px 5px;background:rgba(0,0,0,.3);white-space:nowrap}
+  .grp{font-size:9px;color:var(--faint);text-transform:uppercase;letter-spacing:.09em;
+       margin:8px 0 4px;font-weight:700;padding-left:8px}
 
-  /* segmented control */
-  .seg{display:flex;gap:0;border:1px solid var(--edge);border-radius:7px;overflow:hidden}
-  .seg button{
-    flex:1;font-family:var(--mono);font-size:11px;color:var(--dim);cursor:pointer;
-    background:transparent;border:0;padding:7px 5px;transition:.13s;border-right:1px solid var(--edge);
-  }
+  /* segmented */
+  .seg{display:flex;border:1px solid var(--edge);border-radius:7px;overflow:hidden}
+  .seg button{flex:1;font-family:var(--mono);font-size:10.5px;color:var(--dim);cursor:pointer;
+              background:transparent;border:0;padding:7px 4px;transition:var(--t);
+              border-right:1px solid var(--edge)}
   .seg button:last-child{border-right:0}
   .seg button:hover{background:rgba(255,255,255,.06);color:var(--txt)}
-  .seg button.on{background:var(--teal-soft);color:var(--teal);font-weight:600}
-  .seg.coop button.on{background:rgba(176,124,255,.16);color:var(--purple)}
-  .hint{font-size:11.5px;color:var(--dimmer);margin-top:7px;line-height:1.45}
+  .seg button.on{background:rgba(52,216,196,.15);color:var(--teal);font-weight:600}
+  .seg.coop button.on{background:rgba(176,124,255,.17);color:var(--purple)}
+  .hint{font-size:11.5px;color:var(--dimmer);margin-top:7px;line-height:1.45;min-height:32px}
 
   /* sliders */
-  .sl{margin-bottom:11px}
-  .sl:last-child{margin-bottom:0}
-  .sl .top{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:5px}
-  .sl .top span:first-child{font-size:12.5px;color:var(--dim)}
-  .sl .top b{font-family:var(--mono);font-size:12px;color:var(--orange);font-weight:500}
-  input[type=range]{
-    -webkit-appearance:none;appearance:none;width:100%;height:4px;border-radius:3px;
-    background:rgba(255,255,255,.13);outline:none;cursor:pointer;
-  }
-  input[type=range]::-webkit-slider-thumb{
-    -webkit-appearance:none;width:13px;height:13px;border-radius:50%;background:var(--orange);
-    border:2px solid var(--panel-solid);box-shadow:0 0 0 1px var(--edge-hot),0 0 9px rgba(255,139,61,.55);
-  }
-  input[type=range]::-moz-range-thumb{
-    width:13px;height:13px;border-radius:50%;background:var(--orange);
-    border:2px solid var(--panel-solid);box-shadow:0 0 0 1px var(--edge-hot);
-  }
+  .sl{margin-bottom:10px}.sl:last-child{margin-bottom:0}
+  .sl .top{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:4px}
+  .sl .top span{font-size:12px;color:var(--dim)}
+  .sl .top b{font-family:var(--mono);font-size:11.5px;color:var(--orange);font-weight:500}
+  input[type=range]{-webkit-appearance:none;appearance:none;width:100%;height:4px;border-radius:3px;
+                    background:rgba(255,255,255,.12);outline:none;cursor:pointer}
+  input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:13px;height:13px;
+    border-radius:50%;background:var(--orange);border:2px solid var(--solid);
+    box-shadow:0 0 0 1px var(--hot),0 0 9px rgba(255,139,61,.5);transition:transform .1s}
+  input[type=range]:active::-webkit-slider-thumb{transform:scale(1.2)}
+  input[type=range]::-moz-range-thumb{width:13px;height:13px;border-radius:50%;
+    background:var(--orange);border:2px solid var(--solid);box-shadow:0 0 0 1px var(--hot)}
 
-  /* rarity weight bars */
-  .rar{display:flex;flex-direction:column;gap:6px}
-  .rw{display:flex;align-items:center;gap:9px}
-  .rw .nm{font-size:12px;width:66px;flex:0 0 auto}
-  .rw.c1 .nm{color:#b8c9d2}.rw.c2 .nm{color:#5ddb8a}
-  .rw.c3 .nm{color:#57b8ff}.rw.c4 .nm{color:var(--purple)}
-  .rw .track{flex:1;height:7px;border-radius:4px;background:rgba(255,255,255,.08);overflow:hidden}
-  .rw .track i{display:block;height:100%;border-radius:4px;transition:width .25s}
-  .rw.c1 .track i{background:linear-gradient(90deg,#7d919c,#b8c9d2)}
-  .rw.c2 .track i{background:linear-gradient(90deg,#2f9c5e,#5ddb8a)}
-  .rw.c3 .track i{background:linear-gradient(90deg,#2a72b8,#57b8ff)}
-  .rw.c4 .track i{background:linear-gradient(90deg,#7444c4,#b07cff)}
-  .rw .pc{font-family:var(--mono);font-size:11px;color:var(--dim);width:38px;text-align:right}
+  /* rarity weights — now adjustable + normalised */
+  .rar{display:flex;flex-direction:column;gap:5px}
+  .rw{display:flex;align-items:center;gap:8px}
+  .rw .nm{font-size:11.5px;width:64px;flex:0 0 auto}
+  .rw.c1 .nm{color:#b8c9d2}.rw.c2 .nm{color:var(--ok)}
+  .rw.c3 .nm{color:var(--blue)}.rw.c4 .nm{color:var(--purple)}
+  .rw input[type=range]{flex:1;height:6px}
+  .rw.c1 input::-webkit-slider-thumb{background:#b8c9d2;box-shadow:0 0 0 1px rgba(184,201,210,.5)}
+  .rw.c2 input::-webkit-slider-thumb{background:var(--ok);box-shadow:0 0 0 1px rgba(93,219,138,.5)}
+  .rw.c3 input::-webkit-slider-thumb{background:var(--blue);box-shadow:0 0 0 1px rgba(87,184,255,.5)}
+  .rw.c4 input::-webkit-slider-thumb{background:var(--purple);box-shadow:0 0 0 1px rgba(176,124,255,.5)}
+  .rw .pc{font-family:var(--mono);font-size:10.5px;color:var(--dim);width:34px;text-align:right}
+  .dimmed{opacity:.34;pointer-events:none;transition:opacity var(--t)}
 
-  /* action buttons */
-  .acts{display:grid;grid-template-columns:1fr 1fr;gap:6px}
-  .btn{
-    font-family:var(--sans);font-size:12.5px;font-weight:550;cursor:pointer;color:var(--txt);
-    background:rgba(255,255,255,.055);border:1px solid var(--edge);
-    border-radius:7px;padding:9px 10px;transition:.13s;
-    display:flex;align-items:center;justify-content:center;gap:7px;
-  }
-  .btn:hover{background:rgba(255,255,255,.11);border-color:rgba(255,255,255,.26);transform:translateY(-1px)}
+  /* actions */
+  .acts{display:grid;grid-template-columns:1fr 1fr;gap:5px}
+  .btn{font-family:var(--sans);font-size:12px;font-weight:550;cursor:pointer;color:var(--txt);
+       background:rgba(255,255,255,.05);border:1px solid var(--edge);border-radius:7px;
+       padding:8px 9px;transition:var(--t);display:flex;align-items:center;justify-content:center;gap:6px}
+  .btn:hover{background:rgba(255,255,255,.1);border-color:var(--edge2);transform:translateY(-1px)}
   .btn:active{transform:translateY(0)}
-  .btn.primary{
-    background:linear-gradient(180deg,rgba(255,139,61,.30),rgba(255,139,61,.16));
-    border-color:var(--edge-hot);color:#fff;grid-column:1/-1;font-size:13.5px;padding:11px;
-  }
-  .btn.primary:hover{background:linear-gradient(180deg,rgba(255,139,61,.42),rgba(255,139,61,.24))}
-  .btn.danger:hover{border-color:rgba(255,93,108,.55);color:var(--coral)}
-  .btn small{font-family:var(--mono);font-size:9.5px;color:var(--dimmer);font-weight:400}
+  .btn.primary{grid-column:1/-1;font-size:13px;padding:11px;color:#fff;
+    background:linear-gradient(180deg,rgba(255,139,61,.32),rgba(255,139,61,.15));border-color:var(--hot)}
+  .btn.primary:hover{background:linear-gradient(180deg,rgba(255,139,61,.45),rgba(255,139,61,.24));
+    box-shadow:0 4px 18px rgba(255,139,61,.22)}
+  .btn.danger:hover{border-color:rgba(255,93,108,.5);color:var(--coral)}
+  .btn small{font-family:var(--mono);font-size:9px;color:var(--dimmer);font-weight:400}
 
   /* console */
-  .console{
-    background:#050d12;border:1px solid var(--edge);border-radius:8px;overflow:hidden;
-    display:flex;flex-direction:column;height:196px;
-  }
-  .console .chead{
-    display:flex;align-items:center;gap:7px;padding:6px 10px;
-    background:rgba(255,255,255,.035);border-bottom:1px solid var(--edge);
-  }
-  .console .chead b{font-family:var(--mono);font-size:10px;color:var(--dim);font-weight:500}
-  .console .chead .clr{margin-left:auto;font-family:var(--mono);font-size:10px;color:var(--dimmer);
-                       cursor:pointer;border:0;background:none;padding:2px 5px;border-radius:4px}
-  .console .chead .clr:hover{color:var(--coral);background:rgba(255,93,108,.1)}
-  .out{
-    flex:1;overflow-y:auto;padding:8px 10px;font-family:var(--mono);font-size:11px;line-height:1.65;
-  }
-  .out::-webkit-scrollbar{width:7px}
-  .out::-webkit-scrollbar-thumb{background:rgba(255,255,255,.16);border-radius:4px}
-  .ln{white-space:pre-wrap;word-break:break-word}
-  .ln.cmd{color:var(--orange)}
-  .ln.ok{color:var(--ok)}
-  .ln.warn{color:var(--gold)}
-  .ln.err{color:var(--coral)}
-  .ln.mut{color:var(--dimmer)}
-  .ln.info{color:#9fc4d4}
-  .cin{display:flex;align-items:center;gap:7px;padding:7px 10px;border-top:1px solid var(--edge);
-       background:rgba(255,255,255,.022)}
-  .cin span{font-family:var(--mono);font-size:11px;color:var(--orange)}
-  .cin input{
-    flex:1;background:none;border:0;outline:none;color:var(--txt);
-    font-family:var(--mono);font-size:11.5px;
-  }
-  .cin input::placeholder{color:var(--dimmer)}
+  .console{background:#040b10;border:1px solid var(--edge);border-radius:8px;overflow:hidden;
+           display:flex;flex-direction:column;height:172px}
+  .chead{display:flex;align-items:center;gap:7px;padding:5px 9px;
+         background:rgba(255,255,255,.03);border-bottom:1px solid var(--edge)}
+  .chead b{font-family:var(--mono);font-size:9.5px;color:var(--dimmer);font-weight:500}
+  .chead .clr{margin-left:auto;font-family:var(--mono);font-size:9.5px;color:var(--faint);
+              cursor:pointer;border:0;background:none;padding:2px 5px;border-radius:4px;transition:var(--t)}
+  .chead .clr:hover{color:var(--coral);background:rgba(255,93,108,.1)}
+  .out{flex:1;overflow-y:auto;padding:7px 9px;font-family:var(--mono);font-size:10.5px;line-height:1.6}
+  .out::-webkit-scrollbar{width:6px}
+  .out::-webkit-scrollbar-thumb{background:rgba(255,255,255,.15);border-radius:4px}
+  .ln{white-space:pre-wrap;word-break:break-word;animation:slidein .16s ease-out}
+  @keyframes slidein{from{opacity:0;transform:translateX(-3px)}to{opacity:1;transform:none}}
+  .ln.cmd{color:var(--orange)}.ln.ok{color:var(--ok)}.ln.warn{color:var(--gold)}
+  .ln.err{color:var(--coral)}.ln.mut{color:var(--faint)}.ln.info{color:#9fc4d4}
+  .cin{display:flex;align-items:center;gap:6px;padding:6px 9px;border-top:1px solid var(--edge);
+       background:rgba(255,255,255,.02)}
+  .cin span{font-family:var(--mono);font-size:10.5px;color:var(--orange)}
+  .cin input{flex:1;background:none;border:0;outline:none;color:var(--txt);
+             font-family:var(--mono);font-size:11px}
+  .cin input::placeholder{color:var(--faint)}
 
-  /* footer keybind legend */
-  .foot{
-    display:flex;flex-wrap:wrap;gap:5px 16px;padding:9px 17px;
-    border-top:1px solid var(--edge);background:rgba(0,0,0,.26);
-  }
-  .foot span{font-size:11px;color:var(--dimmer);display:flex;align-items:center;gap:6px}
+  .foot{display:flex;flex-wrap:wrap;gap:4px 15px;padding:8px 15px;border-top:1px solid var(--edge);
+        background:rgba(0,0,0,.28)}
+  .foot span{font-size:10.5px;color:var(--faint);display:flex;align-items:center;gap:5px}
 
-  /* annotations under the mock */
-  .notes{margin-top:22px;display:grid;grid-template-columns:repeat(auto-fit,minmax(255px,1fr));gap:12px}
-  .note{
-    background:rgba(255,255,255,.028);border:1px solid var(--edge);
-    border-left:2px solid var(--orange);border-radius:8px;padding:13px 15px;
-  }
-  .note.teal{border-left-color:var(--teal)}
-  .note.coral{border-left-color:var(--coral)}
-  .note h4{font-size:12.5px;font-weight:650;margin-bottom:5px}
-  .note p{font-size:12.5px;color:var(--dim);line-height:1.55}
-  .note code{font-family:var(--mono);font-size:11px;color:var(--orange);
+  /* notes */
+  .notes{margin-top:22px;display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:11px}
+  .note{background:rgba(255,255,255,.026);border:1px solid var(--edge);border-left:2px solid var(--orange);
+        border-radius:8px;padding:12px 14px}
+  .note.t{border-left-color:var(--teal)}.note.c{border-left-color:var(--coral)}
+  .note.p{border-left-color:var(--purple)}
+  .note h4{font-size:12px;font-weight:650;margin-bottom:4px}
+  .note p{font-size:12px;color:var(--dim);line-height:1.55}
+  .note code{font-family:var(--mono);font-size:10.5px;color:var(--orange);
              background:rgba(255,139,61,.1);padding:1px 4px;border-radius:3px}
 </style>
 </head>
 <body>
 <div class="wrap">
 
-  <div class="page-head">
-    <h1>CrabRandomizer &mdash; mod menu <span class="ver">design mockup</span></h1>
-    <p>Every toggle, preset, slider and command below is the <b>real</b> surface of the mod as it
-       exists in v1.7.0 &mdash; the 8 numpad toggles, 6 presets, 3 roll modes, 3 co-op modes and
-       10 console commands. It is clickable: change things and watch the console react.
-       <b>This is a picture of a menu, not a working one</b> &mdash; see the notes underneath for what
-       it would take to actually draw this in-game.</p>
+  <div class="ph">
+    <h1>CrabRandomizer &mdash; mod menu <span class="tag">mockup v2</span></h1>
+    <p>The change from v1: the menu now <b>shows both players' loadouts</b>. Pick
+       <b>mirror</b> and hit Shuffle &mdash; you watch the two columns land identical. Pick
+       <b>swap</b> and you watch them trade. That's the whole feature made visible, which a
+       row of toggles could never do. Everything is clickable.</p>
   </div>
 
-  <div class="viewport">
+  <div class="vp">
     <div class="scrim"></div>
-
-    <!-- decorative fake HUD -->
     <div class="hud hud-tl">
       <div class="hp"><i></i></div>
-      <div class="hud-chip">ISLAND 7 &nbsp;&middot;&nbsp; WAVE 3</div>
+      <div class="chip">ISLAND 7 &nbsp;&middot;&nbsp; WAVE 3</div>
     </div>
-    <div class="hud hud-tr">
-      <div class="hud-chip">2 PLAYERS &middot; HOST</div>
-    </div>
-    <div class="hud hud-bl">
-      <div class="hud-chip">AK-74 &nbsp;&middot;&nbsp; 24 / 90</div>
-    </div>
+    <div class="hud hud-tr"><div class="chip">CO-OP &middot; HOST</div></div>
 
     <div class="menu">
 
@@ -331,24 +321,47 @@
         <span class="crab">&#129408;</span>
         <h2>CrabRandomizer</h2>
         <span class="v">v1.7.0</span>
-        <div class="spacer"></div>
-        <div class="live"><span class="dot"></span><span id="liveTxt">host &middot; 2 players &middot; 8/8 pools</span></div>
+        <div class="sp"></div>
+        <div class="live"><span class="dot"></span><span>host &middot; 2 players &middot; 9/9 pools</span></div>
         <span class="esc">ESC</span>
       </div>
 
       <div class="strip">
-        <div class="stat"><div class="k">Next shuffle</div><div class="v hot" id="sNext">1 island</div></div>
-        <div class="stat"><div class="k">Roll mode</div><div class="v cool" id="sRoll">weighted</div></div>
-        <div class="stat"><div class="k">Co-op mode</div><div class="v" id="sCoop">independent</div></div>
-        <div class="stat"><div class="k">Active slots</div><div class="v" id="sSlots">0 / 9</div></div>
-        <div class="stat"><div class="k">Dry run</div><div class="v" id="sDry">off</div></div>
+        <div class="st"><div class="k">Next shuffle</div><div class="v hot" id="sNext">3 islands</div></div>
+        <div class="st"><div class="k">Roll mode</div><div class="v cool" id="sRoll">weighted</div></div>
+        <div class="st"><div class="k">Co-op mode</div><div class="v" id="sCoop">independent</div></div>
+        <div class="st"><div class="k">Active slots</div><div class="v" id="sSlots">6 / 9</div></div>
+        <div class="st"><div class="k">Shuffles</div><div class="v" id="sCount">0</div></div>
+      </div>
+
+      <!-- ============ LOADOUT STAGE ============ -->
+      <div class="stage">
+        <div class="stage-head">
+          <h3>Live loadouts</h3>
+          <span class="flag" id="modeFlag">independent</span>
+          <div class="sp"></div>
+          <span class="eq" id="eqFlag">&#10003; identical</span>
+        </div>
+        <div class="players">
+          <div class="pcard p1" id="c1">
+            <div class="who"><i></i><b>You</b><span class="role">host</span></div>
+            <div class="gear" id="g1"></div>
+          </div>
+
+          <div class="linkcol">
+            <svg viewBox="0 0 44 52" aria-hidden="true" id="linkSvg"></svg>
+            <span class="cap" id="linkCap">separate<br>rolls</span>
+          </div>
+
+          <div class="pcard p2" id="c2">
+            <div class="who"><i></i><b>Friend</b><span class="role">client</span></div>
+            <div class="gear" id="g2"></div>
+          </div>
+        </div>
       </div>
 
       <div class="body">
-
-        <!-- ================= LEFT ================= -->
         <div class="col">
-
           <div class="sect">
             <h3>Presets</h3>
             <div class="presets" id="presets">
@@ -362,12 +375,12 @@
           </div>
 
           <div class="sect">
-            <h3>What gets randomized</h3>
+            <h3>What gets randomized <span class="n" id="slotN">6/9</span></h3>
             <div class="toggles" id="toggles">
-              <div class="divider-lbl">Mods, perks &amp; relics &mdash; slot arrays</div>
-              <!-- filled by JS -->
-              <div class="divider-lbl">Base loadout &mdash; host only</div>
-              <div id="baseSlot"></div>
+              <div class="grp">Slot arrays</div>
+              <div id="arrAnchor"></div>
+              <div class="grp">Base loadout &mdash; host only</div>
+              <div id="baseAnchor"></div>
             </div>
           </div>
 
@@ -380,12 +393,9 @@
             </div>
             <p class="hint" id="coopHint">Each player rolls their own loadout.</p>
           </div>
-
         </div>
 
-        <!-- ================= RIGHT ================= -->
         <div class="col">
-
           <div class="sect">
             <h3>Roll mode</h3>
             <div class="seg" id="rollSeg">
@@ -397,28 +407,19 @@
           </div>
 
           <div class="sect" id="rarSect">
-            <h3>Rarity weights</h3>
-            <div class="rar">
-              <div class="rw c1"><span class="nm">Common</span><span class="track"><i style="width:50%"></i></span><span class="pc">50%</span></div>
-              <div class="rw c2"><span class="nm">Uncommon</span><span class="track"><i style="width:25%"></i></span><span class="pc">25%</span></div>
-              <div class="rw c3"><span class="nm">Rare</span><span class="track"><i style="width:15%"></i></span><span class="pc">15%</span></div>
-              <div class="rw c4"><span class="nm">Legendary</span><span class="track"><i style="width:10%"></i></span><span class="pc">10%</span></div>
-            </div>
+            <h3>Rarity weights <span class="n" id="rarSum">100%</span></h3>
+            <div class="rar" id="rar"></div>
           </div>
 
           <div class="sect">
-            <h3>Timing &amp; filters</h3>
+            <h3>Timing</h3>
             <div class="sl">
-              <div class="top"><span>Islands before shuffling</span><b id="vIsl">1</b></div>
-              <input type="range" id="rIsl" min="1" max="10" value="1">
-            </div>
-            <div class="sl">
-              <div class="top"><span>Minimum rarity</span><b id="vRar">1</b></div>
-              <input type="range" id="rRar" min="1" max="4" value="1">
+              <div class="top"><span>Islands before shuffling</span><b id="vIsl">3</b></div>
+              <input type="range" id="rIsl" min="1" max="10" value="3" aria-label="Islands before shuffling">
             </div>
             <div class="sl">
               <div class="top"><span>Shuffle delay</span><b id="vDly">2500 ms</b></div>
-              <input type="range" id="rDly" min="0" max="6000" step="250" value="2500">
+              <input type="range" id="rDly" min="0" max="6000" step="250" value="2500" aria-label="Shuffle delay">
             </div>
           </div>
 
@@ -428,18 +429,13 @@
               <button class="btn primary" data-cmd="randomizenow">Shuffle now <small>Ctrl+R</small></button>
               <button class="btn danger" data-cmd="randomizeundo">Undo</button>
               <button class="btn" data-cmd="randomizestatus">Status</button>
-              <button class="btn" data-cmd="randomizehistory">History</button>
-              <button class="btn" data-cmd="randomizelist">List pools</button>
             </div>
           </div>
 
           <div class="sect">
             <h3>Console</h3>
             <div class="console">
-              <div class="chead">
-                <b>output</b>
-                <button class="clr" id="clr">clear</button>
-              </div>
+              <div class="chead"><b>output</b><button class="clr" id="clr">clear</button></div>
               <div class="out" id="out"></div>
               <div class="cin">
                 <span>&gt;</span>
@@ -447,51 +443,52 @@
               </div>
             </div>
           </div>
-
         </div>
       </div>
 
       <div class="foot">
         <span><span class="kbd">Ctrl+K</span> open / close</span>
-        <span><span class="kbd">Ctrl+R</span> shuffle now</span>
-        <span><span class="kbd">Num 1-8</span> toggle a slot</span>
-        <span><span class="kbd">Shift+Num 1-5</span> reroll one slot</span>
+        <span><span class="kbd">Ctrl+R</span> shuffle</span>
+        <span><span class="kbd">Num 1-8</span> toggle slot</span>
+        <span><span class="kbd">Shift+Num 1-5</span> reroll one</span>
         <span><span class="kbd">Num 9</span> undo</span>
         <span><span class="kbd">Num 0</span> status</span>
-        <span><span class="kbd">Num .</span> dump</span>
       </div>
-
     </div>
   </div>
 
   <div class="notes">
+    <div class="note p">
+      <h4>What changed from v1</h4>
+      <p>v1 showed only settings, so mirror and independent looked <em>identical on screen</em>.
+         Now the loadouts are the centrepiece and the mode is something you watch happen. That's
+         the fix a design pass should find.</p>
+    </div>
+    <div class="note t">
+      <h4>Still a mockup</h4>
+      <p>UE4SS v3.0.1 gives Lua <b>no drawing API</b>. Every behaviour here is real and works
+         today &mdash; via <code>randomizeset</code>, the numpad keys and <code>!rand</code> chat.
+         Only the panel is imaginary.</p>
+    </div>
     <div class="note">
-      <h4>This is a mockup, not the mod</h4>
-      <p>UE4SS v3.0.1 gives Lua <b>no drawing API at all</b>, so the mod physically cannot paint
-         this over the game. Everything here is real <em>behaviour</em> that already works &mdash;
-         just reached today through <code>randomizeset</code>, the numpad keys and
-         <code>!rand</code> chat commands instead of a panel.</p>
+      <h4>To build it for real</h4>
+      <p>UMG widget in Unreal Editor 4.27 + the Crab Champions modkit, cooked to a
+         <code>.pak</code>. I write the Lua that constructs it and binds the buttons; the editor
+         half needs you.</p>
     </div>
-    <div class="note teal">
-      <h4>To make it real: a UMG widget</h4>
-      <p>Build this layout in Unreal Editor 4.27 with the Crab Champions modkit, cook it to a
-         <code>.pak</code>, and the Lua side constructs it and calls <code>AddToViewport</code>.
-         I can write all of that Lua &mdash; the editor half needs you, since I can't author assets.</p>
-    </div>
-    <div class="note coral">
-      <h4>The C++ / ImGui route is blocked</h4>
-      <p>It would render in UE4SS's <em>separate debug window</em>, not over the game &mdash; and it
-         can't be compiled anyway: RE-UE4SS's <code>UEPseudo</code> submodule 404s, so nobody can
-         build the source tree right now.</p>
+    <div class="note c">
+      <h4>C++ / ImGui is blocked</h4>
+      <p>Renders in UE4SS's separate debug window, not over the game &mdash; and can't compile
+         anyway while RE-UE4SS's <code>UEPseudo</code> submodule 404s.</p>
     </div>
   </div>
-
 </div>
 
 <script>
 (function(){
-  // ---- the mod's real slot definitions, in ToggleDefs order ----
-  var SLOTS = [
+  "use strict";
+
+  var SLOTS=[
     {k:'randomizeWeaponMods', l:'Weapon mods',  n:'Num 1', pool:142, arr:true},
     {k:'randomizeAbilityMods',l:'Ability mods', n:'Num 2', pool:38,  arr:true},
     {k:'randomizeMeleeMods',  l:'Melee mods',   n:'Num 3', pool:44,  arr:true},
@@ -502,222 +499,316 @@
     {k:'randomizeAbility',    l:'Ability',      n:'Num 7', pool:14,  arr:false},
     {k:'randomizeMelee',      l:'Melee',        n:'Num 8', pool:11,  arr:false}
   ];
-
-  // ---- the mod's real presets ----
-  var PRESETS = {
-    off:     {on:[], islands:6, roll:'weighted', coop:'independent'},
-    gentle:  {on:['randomizePerks','randomizeRelics'], islands:6, roll:'withinRarity', coop:'independent'},
-    'default':{on:['randomizeWeaponMods','randomizeAbilityMods','randomizeMeleeMods','randomizeGrenadeMods','randomizePerks','randomizeRelics'], islands:3, roll:'weighted', coop:'independent'},
-    chaos:   {on:SLOTS.map(function(s){return s.k}), islands:1, roll:'uniform', coop:'independent'},
-    mirror:  {on:SLOTS.map(function(s){return s.k}), islands:1, roll:'weighted', coop:'mirror'},
-    swap:    {on:SLOTS.map(function(s){return s.k}), islands:1, roll:'weighted', coop:'swap'}
+  var ALL=SLOTS.map(function(s){return s.k});
+  var PRESETS={
+    off:{on:[],islands:6,roll:'weighted',coop:'independent'},
+    gentle:{on:['randomizePerks','randomizeRelics'],islands:6,roll:'withinRarity',coop:'independent'},
+    'default':{on:['randomizeWeaponMods','randomizeAbilityMods','randomizeMeleeMods',
+                   'randomizeGrenadeMods','randomizePerks','randomizeRelics'],
+               islands:3,roll:'weighted',coop:'independent'},
+    chaos:{on:ALL,islands:1,roll:'uniform',coop:'independent'},
+    mirror:{on:ALL,islands:1,roll:'weighted',coop:'mirror'},
+    swap:{on:ALL,islands:1,roll:'weighted',coop:'swap'}
   };
 
-  var state = {on:{}, islands:1, roll:'weighted', coop:'independent', dry:false};
+  // gear name pools, tagged with a rarity 1-4
+  var POOL={
+    Weapon:[['AK-74',1],['Hand Cannon',2],['Scrapper',1],['Tempest SMG',2],['Rail Driver',3],['Sunburst',4]],
+    Ability:[['Dash',1],['Grapple',2],['Turret',2],['Black Hole',4],['Decoy',1],['Overdrive',3]],
+    Melee:[['Cutlass',1],['Claw',2],['Warhammer',3],['Tidebreaker',4],['Shiv',1]],
+    Perk:[['Adrenaline',1],['Thorns',2],['Vampiric',3],['Glass Cannon',4],['Momentum',1],['Featherweight',2]],
+    Relic:[['Tidal Charm',2],['Ember Core',3],['Void Shard',4],['Sea Glass',1],['Coral Heart',3]]
+  };
+  var GEAR=[{sl:'Weapon',p:'Weapon'},{sl:'Ability',p:'Ability'},{sl:'Melee',p:'Melee'},
+            {sl:'Perk 1',p:'Perk'},{sl:'Perk 2',p:'Perk'},{sl:'Relic',p:'Relic'}];
 
-  var $  = function(s){return document.querySelector(s)};
-  var $$ = function(s){return Array.prototype.slice.call(document.querySelectorAll(s))};
-  var out = $('#out');
+  var state={on:{},islands:3,roll:'weighted',coop:'independent',count:0,
+             w:[50,25,15,10], p1:[], p2:[], prev:null};
 
-  function say(txt, cls){
-    var d = document.createElement('div');
-    d.className = 'ln ' + (cls||'');
-    d.textContent = txt;
-    out.appendChild(d);
-    out.scrollTop = out.scrollHeight;
+  var $=function(s){return document.querySelector(s)};
+  var $$=function(s){return [].slice.call(document.querySelectorAll(s))};
+  var out=$('#out');
+
+  function say(t,c){
+    var d=document.createElement('div');
+    d.className='ln '+(c||''); d.textContent=t;
+    out.appendChild(d); out.scrollTop=out.scrollHeight;
+    while(out.children.length>140) out.removeChild(out.firstChild);
+  }
+  function rnd(a){return a[Math.floor(Math.random()*a.length)]}
+
+  /* weighted pick honouring the rarity sliders */
+  function pickFrom(poolName){
+    var list=POOL[poolName];
+    if(state.roll==='uniform') return rnd(list).slice();
+    var tot=0,i,acc=0,r;
+    for(i=0;i<list.length;i++) tot+=state.w[list[i][1]-1];
+    r=Math.random()*tot;
+    for(i=0;i<list.length;i++){ acc+=state.w[list[i][1]-1]; if(r<=acc) return list[i].slice() }
+    return list[list.length-1].slice();
+  }
+  function freshLoadout(){ return GEAR.map(function(g){ return pickFrom(g.p) }) }
+
+  /* ---------- render loadout cards ---------- */
+  function paint(which,arr,animate){
+    var el=$(which===1?'#g1':'#g2');
+    el.innerHTML='';
+    arr.forEach(function(item,i){
+      var row=document.createElement('div');
+      row.className='g'+(animate?' rolled':'');
+      row.style.animationDelay=(i*38)+'ms';
+      row.innerHTML='<span class="sl">'+GEAR[i].sl+'</span>'+
+                    '<span class="nm n'+item[1]+'">'+item[0]+'</span>'+
+                    '<span class="rr r'+item[1]+'"></span>';
+      el.appendChild(row);
+    });
   }
 
-  // ---------- build the toggle rows ----------
-  var tgWrap = $('#toggles'), baseAnchor = $('#baseSlot');
+  /* ---------- the link diagram between the two cards ---------- */
+  function drawLink(){
+    var svg=$('#linkSvg'), cap=$('#linkCap'), s='';
+    if(state.coop==='mirror'){
+      s='<path class="lk m" d="M22 4 L22 18"/>'+
+        '<circle cx="22" cy="3" r="2.6" fill="var(--purple)" stroke="none"/>'+
+        '<path class="lk m" d="M22 18 C22 30, 4 28, 4 42"/>'+
+        '<path class="lk m" d="M22 18 C22 30, 40 28, 40 42"/>'+
+        '<path class="lk m" d="M1 38 L4 43 L7 38"/>'+
+        '<path class="lk m" d="M37 38 L40 43 L43 38"/>';
+      cap.innerHTML='one roll<br>&rarr; both';
+    } else if(state.coop==='swap'){
+      s='<path class="lk a" d="M4 12 C4 26, 40 26, 40 40"/>'+
+        '<path class="lk b" d="M40 12 C40 26, 4 26, 4 40"/>'+
+        '<path class="lk a" d="M37 36 L40 41 L43 36"/>'+
+        '<path class="lk b" d="M1 36 L4 41 L7 36"/>';
+      cap.innerHTML='trade<br>loadouts';
+    } else {
+      s='<path class="lk a" d="M8 8 L8 42"/><path class="lk a" d="M5 38 L8 43 L11 38"/>'+
+        '<path class="lk b" d="M36 8 L36 42"/><path class="lk b" d="M33 38 L36 43 L39 38"/>';
+      cap.innerHTML='separate<br>rolls';
+    }
+    svg.innerHTML=s;
+  }
+
+  function sameLoadout(){
+    if(!state.p1.length||!state.p2.length) return false;
+    return state.p1.every(function(x,i){return x[0]===state.p2[i][0]});
+  }
+
+  /* ---------- render everything ---------- */
+  function render(){
+    $$('.tg').forEach(function(r){ r.classList.toggle('on',!!state.on[r.dataset.k]) });
+    $$('#rollSeg button').forEach(function(b){ b.classList.toggle('on',b.dataset.r===state.roll) });
+    $$('#coopSeg button').forEach(function(b){ b.classList.toggle('on',b.dataset.c===state.coop) });
+
+    var n=ALL.filter(function(k){return state.on[k]}).length;
+    $('#sSlots').textContent=n+' / 9';
+    $('#slotN').textContent=n+'/9';
+    $('#sRoll').textContent=state.roll;
+    $('#sCoop').textContent=state.coop;
+    $('#sCoop').className='v'+(state.coop==='mirror'?' pur':state.coop==='swap'?' warn':'');
+    $('#sNext').textContent=state.islands+(state.islands===1?' island':' islands');
+    $('#sCount').textContent=state.count;
+
+    var f=$('#modeFlag');
+    f.textContent=state.coop;
+    f.className='flag'+(state.coop==='mirror'?' mirror':state.coop==='swap'?' swap':'');
+    $('#c1').classList.toggle('hl',state.coop==='mirror');
+    $('#c2').classList.toggle('hl',state.coop==='mirror');
+    $('#eqFlag').classList.toggle('show',sameLoadout());
+
+    $('#rarSect').classList.toggle('dimmed',state.roll!=='weighted');
+    $('#rollHint').textContent=
+      state.roll==='weighted'?'Rarity weights below bias the roll — commons are more likely.':
+      state.roll==='withinRarity'?'Rerolls stay in the tier the slot already had. Weights ignored.':
+      'Every candidate equally likely. Weights ignored.';
+    $('#coopHint').textContent=
+      state.coop==='independent'?'Each player rolls their own loadout.':
+      state.coop==='mirror'?'Rolled once — every player gets the SAME result, weapon and melee included. Host applies it for everyone.':
+      'Players trade their existing loadouts. Nothing is rolled. Needs 2+ players.';
+
+    drawLink();
+  }
+
+  /* ---------- build toggles ---------- */
+  var arrA=$('#arrAnchor'), baseA=$('#baseAnchor');
   SLOTS.forEach(function(s){
-    var row = document.createElement('div');
-    row.className = 'tg';
-    row.dataset.k = s.k;
-    row.innerHTML =
-      '<span class="sw"></span>' +
-      '<span class="lbl">' + s.l + '</span>' +
-      '<span class="cnt">' + s.pool + '</span>' +
-      '<span class="kbd">' + s.n + '</span>';
-    row.addEventListener('click', function(){
-      state.on[s.k] = !state.on[s.k];
-      say('randomizeset ' + s.k + ' ' + state.on[s.k], 'cmd');
-      say('  ' + s.k + ' = ' + state.on[s.k], state.on[s.k] ? 'ok' : 'mut');
+    var row=document.createElement('div');
+    row.className='tg'; row.dataset.k=s.k; row.tabIndex=0; row.setAttribute('role','switch');
+    row.innerHTML='<span class="sw"></span><span class="lbl">'+s.l+
+                  '</span><span class="cnt">'+s.pool+'</span><span class="kbd">'+s.n+'</span>';
+    function flip(){
+      state.on[s.k]=!state.on[s.k];
+      say('randomizeset '+s.k+' '+state.on[s.k],'cmd');
+      say('  '+s.k+' = '+state.on[s.k],state.on[s.k]?'ok':'mut');
       clearPreset(); render();
+    }
+    row.addEventListener('click',flip);
+    row.addEventListener('keydown',function(e){
+      if(e.key===' '||e.key==='Enter'){e.preventDefault();flip()}
     });
-    if (s.arr) tgWrap.insertBefore(row, baseAnchor.previousElementSibling);
-    else baseAnchor.appendChild(row);
+    (s.arr?arrA:baseA).appendChild(row);
   });
+
+  /* ---------- rarity weight sliders ---------- */
+  var RN=['Common','Uncommon','Rare','Legendary'];
+  var rarWrap=$('#rar');
+  RN.forEach(function(nm,i){
+    var d=document.createElement('div');
+    d.className='rw c'+(i+1);
+    d.innerHTML='<span class="nm">'+nm+'</span>'+
+                '<input type="range" min="0" max="100" value="'+state.w[i]+'" aria-label="'+nm+' weight">'+
+                '<span class="pc"></span>';
+    d.querySelector('input').addEventListener('input',function(e){
+      state.w[i]=+e.target.value; paintRar(); clearPreset();
+    });
+    rarWrap.appendChild(d);
+  });
+  function paintRar(){
+    var tot=state.w.reduce(function(a,b){return a+b},0)||1;
+    $$('#rar .rw').forEach(function(r,i){
+      r.querySelector('.pc').textContent=Math.round(state.w[i]/tot*100)+'%';
+    });
+    $('#rarSum').textContent=state.w.reduce(function(a,b){return a+b},0)+' pts';
+  }
 
   function clearPreset(){ $$('.preset').forEach(function(b){b.classList.remove('on')}) }
 
-  // ---------- render ----------
-  function render(){
-    $$('.tg').forEach(function(r){ r.classList.toggle('on', !!state.on[r.dataset.k]) });
-    $$('#rollSeg button').forEach(function(b){ b.classList.toggle('on', b.dataset.r === state.roll) });
-    $$('#coopSeg button').forEach(function(b){ b.classList.toggle('on', b.dataset.c === state.coop) });
-
-    var n = Object.keys(state.on).filter(function(k){return state.on[k]}).length;
-    $('#sSlots').textContent = n + ' / 9';
-    $('#sRoll').textContent  = state.roll;
-    $('#sCoop').textContent  = state.coop;
-    $('#sNext').textContent  = state.islands + (state.islands === 1 ? ' island' : ' islands');
-    $('#sDry').textContent   = state.dry ? 'ON' : 'off';
-    $('#sDry').className     = 'v' + (state.dry ? ' warn' : '');
-    $('#sCoop').className    = 'v' + (state.coop !== 'independent' ? ' warn' : '');
-
-    $('#rarSect').style.opacity = (state.roll === 'weighted') ? '1' : '.38';
-    $('#rollHint').textContent =
-      state.roll === 'weighted'     ? 'Rarity weights below bias the roll.' :
-      state.roll === 'withinRarity' ? 'Rerolls stay in the tier the slot already had. Weights are ignored.' :
-                                      'Every candidate equally likely. Weights are ignored.';
-    $('#coopHint').textContent =
-      state.coop === 'independent' ? 'Each player rolls their own loadout.' :
-      state.coop === 'mirror'      ? 'Rolled once — every player gets the SAME result, weapon and melee included. Host only.' :
-                                     'Players trade their existing loadouts. Nothing is rolled. Needs 2+ players.';
-
-    $('#liveTxt').innerHTML = 'host &middot; 2 players &middot; 8/8 pools';
-  }
-
-  // ---------- presets ----------
-  $$('.preset').forEach(function(btn){
-    btn.addEventListener('click', function(){
-      var p = PRESETS[btn.dataset.p];
-      state.on = {};
-      p.on.forEach(function(k){ state.on[k] = true });
-      state.islands = p.islands; state.roll = p.roll; state.coop = p.coop;
-      $('#rIsl').value = p.islands; $('#vIsl').textContent = p.islands;
-      clearPreset(); btn.classList.add('on');
-      say('randomizepreset ' + btn.dataset.p, 'cmd');
-      say("  Applied preset '" + btn.dataset.p + "' (islands=" + p.islands +
-          ', rollMode=' + p.roll + ', coopMode=' + p.coop + ')', 'ok');
-      if (p.coop === 'mirror') say('  coopMode=mirror: 2 player(s) found, 2 authoritative', 'info');
-      if (p.coop === 'swap')   say('  coopMode=swap: 2 player(s) found, 2 authoritative', 'info');
+  /* ---------- presets ---------- */
+  $$('.preset').forEach(function(b){
+    b.addEventListener('click',function(){
+      var p=PRESETS[b.dataset.p];
+      state.on={}; p.on.forEach(function(k){state.on[k]=true});
+      state.islands=p.islands; state.roll=p.roll; state.coop=p.coop;
+      $('#rIsl').value=p.islands; $('#vIsl').textContent=p.islands;
+      clearPreset(); b.classList.add('on');
+      say('randomizepreset '+b.dataset.p,'cmd');
+      say("  Applied preset '"+b.dataset.p+"' (islands="+p.islands+
+          ', rollMode='+p.roll+', coopMode='+p.coop+')','ok');
       render();
     });
   });
 
-  // ---------- segmented controls ----------
+  /* ---------- segmented ---------- */
   $$('#rollSeg button').forEach(function(b){
-    b.addEventListener('click', function(){
-      state.roll = b.dataset.r;
-      say('randomizeset rollMode ' + state.roll, 'cmd');
-      say('  rollMode = ' + state.roll, 'ok');
+    b.addEventListener('click',function(){
+      state.roll=b.dataset.r;
+      say('randomizeset rollMode '+state.roll,'cmd'); say('  rollMode = '+state.roll,'ok');
       clearPreset(); render();
     });
   });
   $$('#coopSeg button').forEach(function(b){
-    b.addEventListener('click', function(){
-      state.coop = b.dataset.c;
-      say('randomizeset coopMode ' + state.coop, 'cmd');
-      say('  coopMode = ' + state.coop, 'ok');
-      if (state.coop !== 'independent')
-        say('  coopMode=' + state.coop + ': 2 player(s) found, 2 authoritative', 'info');
+    b.addEventListener('click',function(){
+      state.coop=b.dataset.c;
+      say('randomizeset coopMode '+state.coop,'cmd'); say('  coopMode = '+state.coop,'ok');
       clearPreset(); render();
     });
   });
 
-  // ---------- sliders ----------
-  $('#rIsl').addEventListener('input', function(e){
-    state.islands = +e.target.value;
-    $('#vIsl').textContent = state.islands;
-    clearPreset(); render();
+  /* ---------- sliders ---------- */
+  $('#rIsl').addEventListener('input',function(e){
+    state.islands=+e.target.value; $('#vIsl').textContent=state.islands; clearPreset(); render();
   });
-  $('#rRar').addEventListener('input', function(e){
-    $('#vRar').textContent = e.target.value;
-  });
-  $('#rDly').addEventListener('input', function(e){
-    $('#vDly').textContent = e.target.value + ' ms';
-  });
+  $('#rDly').addEventListener('input',function(e){ $('#vDly').textContent=e.target.value+' ms' });
 
-  // ---------- action buttons ----------
-  var NAMES = ['Cyclone','Bouncer','Overclock','Vampiric','Glass Cannon','Ricochet',
-               'Napalm','Cryo Rounds','Adrenaline','Featherweight','Thorns','Momentum'];
-  function pick(){ return NAMES[Math.floor(Math.random()*NAMES.length)] }
+  /* ---------- shuffle ---------- */
+  function shuffle(){
+    var n=ALL.filter(function(k){return state.on[k]}).length;
+    say('randomizenow','cmd');
+    if(!n){ say('  Everything is disabled in config - nothing to randomize','warn'); return }
 
-  function runCmd(cmd){
-    say(cmd, 'cmd');
-    if (cmd === 'randomizenow'){
-      var n = Object.keys(state.on).filter(function(k){return state.on[k]}).length;
-      if (!n){ say('  Everything is disabled in config - nothing to randomize', 'warn'); return }
-      if (state.coop !== 'independent')
-        say('  coopMode=' + state.coop + ': 2 player(s) found, 2 authoritative', 'info');
-      if (state.coop === 'mirror'){
-        var w = pick(), p1 = pick();
-        say('  Player1  Perks[1] -> ' + p1, 'ok');
-        say('  Player2  Perks[1] -> ' + p1 + '   (mirrored)', 'ok');
-        say('  Player1  BaseLoadout -> ' + w, 'ok');
-        say('  Player2  BaseLoadout -> ' + w + '   (mirrored)', 'ok');
-      } else if (state.coop === 'swap'){
-        say('  Player1 <-> Player2  loadouts traded', 'ok');
-      } else {
-        say('  Player1  Perks[1] -> ' + pick(), 'ok');
-        say('  Player2  Perks[1] -> ' + pick(), 'ok');
-      }
-      if (state.dry) say('  [dry-run] no changes were actually applied', 'warn');
-      else say('  [CrabRandomizer] Loadouts shuffled!', 'ok');
-    }
-    else if (cmd === 'randomizeundo') say('  Reverted the last shuffle (2 players, 11 slots)', 'ok');
-    else if (cmd === 'randomizestatus'){
-      say('  version = 1.7.0   rollMode = ' + state.roll + '   coopMode = ' + state.coop, 'info');
-      say('  islandsBeforeRandomizing = ' + state.islands + '   dryRun = ' + state.dry, 'info');
-      say('  pools OK 9/9', 'ok');
-    }
-    else if (cmd === 'randomizehistory'){
-      say('  1  Player1  Perks[1]      Thorns -> Cyclone', 'mut');
-      say('  2  Player2  BaseLoadout   AK-74 -> Hand Cannon', 'mut');
-    }
-    else if (cmd === 'randomizelist'){
-      SLOTS.forEach(function(s){ say('  ' + s.k.replace('randomize','') + ': ' + s.pool + ' entries', 'mut') });
-    }
-    else say("  Unknown command. Try randomizestatus", 'err');
-  }
-  $$('.btn[data-cmd]').forEach(function(b){
-    b.addEventListener('click', function(){ runCmd(b.dataset.cmd) });
-  });
+    state.prev={p1:state.p1.slice(),p2:state.p2.slice()};
+    state.count++;
 
-  // ---------- console input ----------
-  $('#cin').addEventListener('keydown', function(e){
-    if (e.key !== 'Enter') return;
-    var v = e.target.value.trim();
-    if (!v) return;
-    e.target.value = '';
-    var parts = v.split(/\s+/);
-    if (parts[0] === 'randomizeset' && parts.length >= 3){
-      var k = parts[1], val = parts.slice(2).join(' ');
-      say(v, 'cmd');
-      if (k === 'coopMode'){ state.coop = val; say('  coopMode = ' + val, 'ok'); }
-      else if (k === 'rollMode'){ state.roll = val; say('  rollMode = ' + val, 'ok'); }
-      else if (k === 'dryRun'){ state.dry = (val === 'true'); say('  dryRun = ' + state.dry, 'ok'); }
-      else if (k === 'islandsBeforeRandomizing'){
-        state.islands = +val || 1; $('#rIsl').value = state.islands;
-        $('#vIsl').textContent = state.islands; say('  ' + k + ' = ' + state.islands, 'ok');
-      }
-      else if (state.on.hasOwnProperty(k) || SLOTS.some(function(s){return s.k===k})){
-        state.on[k] = (val === 'true'); say('  ' + k + ' = ' + state.on[k], 'ok');
-      }
-      else say("  '" + k + "' is not a config key", 'err');
-      clearPreset(); render();
-    } else if (parts[0] === 'randomizepreset' && parts[1] && PRESETS[parts[1]]){
-      var pb = document.querySelector('.preset[data-p="' + parts[1] + '"]');
-      if (pb) pb.click();
+    if(state.coop!=='independent')
+      say('  coopMode='+state.coop+': 2 player(s) found, 2 authoritative','info');
+
+    if(state.coop==='mirror'){
+      var shared=freshLoadout();
+      state.p1=shared.map(function(x){return x.slice()});
+      state.p2=shared.map(function(x){return x.slice()});
+      say('  Rolled once, applied to both players','ok');
+      say('  Weapon -> '+shared[0][0]+'   (both)','ok');
+    } else if(state.coop==='swap'){
+      var t=state.p1; state.p1=state.p2; state.p2=t;
+      say('  You <-> Friend  loadouts traded','ok');
     } else {
-      runCmd(parts[0]);
+      state.p1=freshLoadout(); state.p2=freshLoadout();
+      say('  You     Weapon -> '+state.p1[0][0],'ok');
+      say('  Friend  Weapon -> '+state.p2[0][0],'ok');
     }
+    say('  [CrabRandomizer] Loadouts shuffled!','ok');
+    paint(1,state.p1,true); paint(2,state.p2,true); render();
+  }
+
+  function undo(){
+    say('randomizeundo','cmd');
+    if(!state.prev){ say('  Nothing to undo','warn'); return }
+    state.p1=state.prev.p1; state.p2=state.prev.p2; state.prev=null;
+    state.count=Math.max(0,state.count-1);
+    say('  Reverted the last shuffle (2 players)','ok');
+    paint(1,state.p1,true); paint(2,state.p2,true); render();
+  }
+
+  function status(){
+    say('randomizestatus','cmd');
+    say('  version = 1.7.0   rollMode = '+state.roll+'   coopMode = '+state.coop,'info');
+    say('  islandsBeforeRandomizing = '+state.islands,'info');
+    say('  pools OK 9/9','ok');
+  }
+
+  $$('.btn[data-cmd]').forEach(function(b){
+    b.addEventListener('click',function(){
+      var c=b.dataset.cmd;
+      if(c==='randomizenow') shuffle();
+      else if(c==='randomizeundo') undo();
+      else status();
+    });
   });
 
-  $('#clr').addEventListener('click', function(){ out.innerHTML = '' });
+  /* ---------- console input ---------- */
+  $('#cin').addEventListener('keydown',function(e){
+    if(e.key!=='Enter') return;
+    var v=e.target.value.trim(); if(!v) return; e.target.value='';
+    var p=v.split(/\s+/);
+    if(p[0]==='randomizenow'){ shuffle(); return }
+    if(p[0]==='randomizeundo'){ undo(); return }
+    if(p[0]==='randomizestatus'){ status(); return }
+    if(p[0]==='randomizepreset'&&PRESETS[p[1]]){
+      var pb=document.querySelector('.preset[data-p="'+p[1]+'"]'); if(pb) pb.click(); return;
+    }
+    if(p[0]==='randomizeset'&&p.length>=3){
+      var k=p[1],val=p.slice(2).join(' ');
+      say(v,'cmd');
+      if(k==='coopMode'){state.coop=val;say('  coopMode = '+val,'ok')}
+      else if(k==='rollMode'){state.roll=val;say('  rollMode = '+val,'ok')}
+      else if(k==='islandsBeforeRandomizing'){
+        state.islands=+val||1;$('#rIsl').value=state.islands;
+        $('#vIsl').textContent=state.islands;say('  '+k+' = '+state.islands,'ok');
+      }
+      else if(ALL.indexOf(k)>=0){state.on[k]=(val==='true');say('  '+k+' = '+state.on[k],'ok')}
+      else{say("  '"+k+"' is not a config key",'err')}
+      clearPreset(); render(); return;
+    }
+    say(v,'cmd'); say('  Unknown command. Try randomizestatus','err');
+  });
 
-  // ---------- boot ----------
-  PRESETS['default'].on.forEach(function(k){ state.on[k] = true });
-  state.islands = 3;
-  $('#rIsl').value = 3; $('#vIsl').textContent = 3;
-  render();
+  $('#clr').addEventListener('click',function(){out.innerHTML=''});
 
-  say('CrabRandomizer v1.7.0 loaded', 'ok');
-  say('Pools: 9/9 resolved  (422 data assets)', 'mut');
-  say('Registered 10 console commands, 14 keybinds, chat prefix !rand', 'mut');
-  say('Host detected - 2 players, both authoritative', 'info');
-  say('Type a command below, or click anything above.', 'mut');
+  /* ---------- keyboard: Ctrl+R shuffles, like the real mod ---------- */
+  document.addEventListener('keydown',function(e){
+    if(e.ctrlKey&&(e.key==='r'||e.key==='R')){ e.preventDefault(); shuffle() }
+  });
+
+  /* ---------- boot ---------- */
+  PRESETS['default'].on.forEach(function(k){state.on[k]=true});
+  state.p1=freshLoadout(); state.p2=freshLoadout();
+  paint(1,state.p1,false); paint(2,state.p2,false);
+  paintRar(); render();
+
+  say('CrabRandomizer v1.7.0 loaded','ok');
+  say('Pools: 9/9 resolved  (422 data assets)','mut');
+  say('Host detected - 2 players, both authoritative','info');
+  say('Try: pick "mirror", then hit Shuffle now (or Ctrl+R).','mut');
 })();
 </script>
 </body>
