@@ -136,7 +136,7 @@ Confirmed working in-game on the beta branch: the mod loads and finds everything
 (113 perks, 91 weapon mods, 66 relics, 42 ability mods, 13 melee mods, 20 weapons,
 7 abilities, 5 melees); config loading and console output work.
 
-Covered by an automated test suite (67 tests) but not yet watched in a live session:
+Covered by an automated test suite (114 tests) but not yet watched in a live session:
 undo, mirror/swap modes, and the co-op authority gate. If any of those misbehave, run
 "randomizedump" and attach the file to a bug report.
 
