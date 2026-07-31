@@ -1343,6 +1343,26 @@ Command("randomizeset", function(parts)
     ValidateConfig()
     log("%s = %s", key, tostring(Config[key]))
     SaveConfig()
+
+    -- Turning the overlay on used to need a game restart, because the module was only
+    -- loaded during startup. Load it here too so `randomizeset overlay true` connects
+    -- Ctrl+K immediately. TryLoadOverlay is a global defined further down; globals resolve
+    -- when this runs, not when it is defined, so the ordering is fine.
+    if key == "overlay" then
+        if Config.overlay and Overlay == nil then
+            if TryLoadOverlay and TryLoadOverlay() then
+                log("Overlay is live - press Ctrl+K now. Arrows move, enter applies.")
+            else
+                log("Overlay could not be started. Ctrl+K still opens the text menu.")
+            end
+        elseif not Config.overlay and Overlay ~= nil then
+            -- Can't unregister a UE4SS hook, so close it and stop drawing. The hook stays
+            -- resident but early-outs on the first comparison.
+            if Overlay.IsOpen() then Overlay.OnKey("close") end
+            Overlay = nil
+            log("Overlay switched off. Ctrl+K returns to the text menu on next launch.")
+        end
+    end
 end)
 
 Command("randomizepreset", function(parts)
@@ -1782,10 +1802,16 @@ end
 
 Overlay = nil
 
-if Config.overlay then
+--- Global on purpose: the randomizeset handler above is defined earlier in the file and
+--- calls this by name at runtime, so Ctrl+K can be connected without restarting the game.
+--- Returns true if the overlay is now live.
+function TryLoadOverlay()
+    if Overlay ~= nil then return true end
+
     local okLoad, mod = pcall(require, "overlay")
     if not okLoad then
         log("Overlay could not be loaded (the randomizer is unaffected): %s", tostring(mod))
+        return false
     else
         -- Deliberately a narrow, explicit surface rather than handing overlay.lua the
         -- whole Config table and the internal functions. It can only do these things.
@@ -1827,11 +1853,15 @@ if Config.overlay then
         if okInit then
             Overlay = mod
             log("Overlay ready - press Ctrl+K in game to open it")
+            return true
         else
             log("Overlay hook failed (the randomizer is unaffected): %s", tostring(errInit))
+            return false
         end
     end
 end
+
+if Config.overlay then TryLoadOverlay() end
 
 local okMenu, errMenu = pcall(function()
     Bind(Config.keyQuickMenu, Config.keyQuickMenuMod, "K", function()
@@ -1858,18 +1888,23 @@ local okMenu, errMenu = pcall(function()
         end
     end)
 
-    -- Arrow keys drive the drawn overlay. Only bound when the overlay actually loaded,
-    -- so we never sit on the arrow keys for players who aren't using it - and each
-    -- handler returns immediately unless the panel is open.
-    if Overlay then
-        local nav = { UP = "up", DOWN = "down", LEFT = "left", RIGHT = "right", ENTER = "enter" }
-        for keyName, action in pairs(nav) do
-            local code = Key[keyName]
-            if code then
-                RegisterKeyBind(code, SafeCallback(function()
-                    if Overlay.IsOpen() then Overlay.OnKey(action) end
-                end))
-            end
+    -- Arrow keys drive the drawn overlay.
+    --
+    -- Bound unconditionally rather than only when the overlay loaded at startup: the
+    -- overlay can now be switched on mid-session with `randomizeset overlay true`, and
+    -- keybinds can only be registered once, here. Gating this on Overlay would have given
+    -- a menu that opens but cannot be navigated - which is exactly the kind of half-wired
+    -- feature that looks like a crash to whoever is holding the controller.
+    --
+    -- Cost when unused is nil-check plus a boolean, and the game still receives the key:
+    -- UE4SS keybinds observe input, they do not consume it.
+    local nav = { UP = "up", DOWN = "down", LEFT = "left", RIGHT = "right", ENTER = "enter" }
+    for keyName, action in pairs(nav) do
+        local code = Key[keyName]
+        if code then
+            RegisterKeyBind(code, SafeCallback(function()
+                if Overlay and Overlay.IsOpen() then Overlay.OnKey(action) end
+            end))
         end
     end
 

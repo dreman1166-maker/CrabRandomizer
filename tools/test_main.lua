@@ -695,5 +695,54 @@ __fs_remove(TEST_CONFIG_PATH)
 package.loaded["overlay"] = nil
 
 -- =====================================================================
+io.write("\n[25] Overlay connects live, without a restart\n")
+
+-- Start with it OFF, the way a real install does, then switch it on mid-session.
+package.loaded["overlay"] = nil
+Mock.hooks["/Script/Engine.HUD:ReceiveDrawHUD"] = nil
+Mock.playerStates = { Mock.makePlayerState(true) }
+loadMain()
+check("starts with no overlay", Overlay == nil)
+
+-- Ctrl+K before enabling must still give the old text menu, not nothing at all.
+Mock.clearOutput()
+Mock.pressKey("K")
+check("ctrl+K falls back to the text menu while off",
+      Mock.outputContains("CrabRandomizer") or Mock.outputContains("Quick menu"))
+
+Mock.clearOutput()
+Mock.runCommand("randomizeset", "overlay", "true")
+check("overlay loads without a restart", Overlay ~= nil)
+check("draw hook registered on the fly",
+      Mock.hooks["/Script/Engine.HUD:ReceiveDrawHUD"] ~= nil)
+check("tells the player it is live", Mock.outputContains("Ctrl+K"))
+
+-- and it must actually be drivable: open + navigate + paint
+Mock.pressKey("K")
+check("ctrl+K now drives the overlay", Overlay.IsOpen())
+local liveHud = Mock.makeHUD()
+Mock.drawFrame(liveHud, 1920, 1080)
+check("live-enabled overlay paints", liveHud.rects > 0 and liveHud.texts > 0)
+
+-- This is the regression the unconditional arrow binding exists for: the keybinds were
+-- registered at load, when the overlay did not yet exist.
+local navLive = pcall(function()
+    Mock.pressKey("DOWN"); Mock.pressKey("DOWN"); Mock.pressKey("RIGHT")
+end)
+check("arrows work on a live-enabled overlay", navLive)
+
+-- switching it back off must not throw
+Mock.clearOutput()
+local offOk = pcall(function() Mock.runCommand("randomizeset", "overlay", "false") end)
+check("switching the overlay off is graceful", offOk and Overlay == nil)
+
+local offHud = Mock.makeHUD()
+Mock.drawFrame(offHud, 1920, 1080)
+check("nothing paints after switching off", offHud.rects == 0 and offHud.texts == 0)
+
+__fs_remove(TEST_CONFIG_PATH)
+package.loaded["overlay"] = nil
+
+-- =====================================================================
 io.write(string.format("\n==== %d passed, %d failed ====\n", passed, failed))
 if failed > 0 then os.exit(1) end
