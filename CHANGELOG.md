@@ -3,6 +3,24 @@
 Versions are declared in `Mods/CrabRandomizer/Scripts/main.lua` (`MOD_VERSION`); CI fails if
 this file has no matching entry. Check yours in game with `randomizestatus`.
 
+## [1.6.0]
+
+**Fixes the client crash on island clear.** Two diagnostic bundles from an affected
+machine showed the same thing: ZERO "cleared an island" lines in the mod log, while the
+game crashed on every island clear with an access violation inside UE4SS.dll (twice, 37
+bytes apart in the same function; bad addresses 0x8 and 0xFFFFFFFFFFFFFFFF).
+
+The handler was dying on object access BEFORE it could log anything.
+ClientOnClearedIsland fires during level teardown, so `Context:get()`, `.PlayerState`,
+`:IsValid()` and `:GetFullName()` can all touch freed or null memory - a native fault no
+pcall can catch. Deferring the shuffle by 2.5s (1.4.4) did not help, because the player
+identity lookup still ran inline inside the hook.
+
+The hook now touches NOTHING: it increments a counter and schedules. Island counting is
+per-machine rather than per-player, since deriving a player key was the very thing that
+required reading PlayerState. ClientOnClearedIsland is a Client RPC that fires once per
+machine, so this is equivalent in practice.
+
 ## [1.5.1]
 
 **Fixes pools getting stuck partially loaded.** Data assets load lazily: a scan at

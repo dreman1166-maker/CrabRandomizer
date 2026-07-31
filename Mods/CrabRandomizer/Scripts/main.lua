@@ -28,7 +28,7 @@ if not okHelpers then UEHelpers = nil end
 -- sandbox has no networking API, and this isn't a standalone app for something like
 -- Velopack to attach to. Nexus/Vortex's own "update available" tracking is the signal;
 -- this constant just lets anyone confirm which build they're running.
-local MOD_VERSION = "1.5.1"
+local MOD_VERSION = "1.6.0"
 
 local MOD_TAG = "[CrabRandomizer]"
 
@@ -909,7 +909,6 @@ end
 
 -- ===================== Shuffle orchestration =====================
 
-local IslandCounters = {}
 
 local function RandomizeEveryone()
     local anyMods = false
@@ -1115,24 +1114,18 @@ end
 
 -- ===================== Trigger =====================
 
-local function OnIslandCleared(CrabPC)
-    if not CrabPC or not CrabPC:IsValid() then
-        log("OnIslandCleared fired with an invalid CrabPC, ignoring")
-        return
-    end
+-- Counts this machine's own island clears. Deliberately NOT keyed by player: deriving a
+-- key means touching CrabPC.PlayerState and calling GetFullName() on it, and doing that
+-- inside the hook is what crashed clients (see below). ClientOnClearedIsland is a Client
+-- RPC that fires once per machine anyway, so a single counter is equivalent here.
+local IslandCount = 0
 
-    local ps = CrabPC.PlayerState
-    if not ps or not ps:IsValid() then
-        log("Clearing CrabPC has no PlayerState, ignoring")
-        return
-    end
+local function OnIslandCleared()
+    IslandCount = IslandCount + 1
+    log("Island cleared (%d/%d before next shuffle)", IslandCount, Config.islandsBeforeRandomizing)
 
-    local key = GetPlayerLabel(ps)
-    IslandCounters[key] = (IslandCounters[key] or 0) + 1
-    log("%s cleared an island (%d/%d before next shuffle)", key, IslandCounters[key], Config.islandsBeforeRandomizing)
-
-    if IslandCounters[key] < Config.islandsBeforeRandomizing then return end
-    IslandCounters[key] = 0
+    if IslandCount < Config.islandsBeforeRandomizing then return end
+    IslandCount = 0
 
     -- DO NOT randomize synchronously inside this hook. ClientOnClearedIsland fires
     -- during level teardown, while pawns/actors are being destroyed and respawned -
@@ -1157,8 +1150,21 @@ local function OnIslandCleared(CrabPC)
     end)
 end
 
+-- CRITICAL: this callback must touch NO game objects.
+--
+-- Evidence from a real crash: a client's log contained ZERO "cleared an island" lines
+-- yet the game crashed on every island clear, with an access violation inside UE4SS.dll
+-- (twice, 37 bytes apart in the same function; bad addresses 0x8 and 0xFFFFFFFFFFFFFFFF).
+-- The handler was dying on object access BEFORE it could log anything.
+--
+-- ClientOnClearedIsland fires during level teardown, when the pawn and PlayerState are
+-- being destroyed. Reading Context:get().PlayerState, or calling :IsValid()/:GetFullName()
+-- on it, dereferences freed or null memory - a native fault no pcall can catch. Deferring
+-- the SHUFFLE was not enough, because the identity lookup still ran inline.
+--
+-- So: do not call Context:get(). Do not read PlayerState. Just count and schedule.
 RegisterHook("/Script/CrabChampions.CrabPC:ClientOnClearedIsland", function(Context, bWasFlawlessClear)
-    local ok, err = pcall(function() OnIslandCleared(Context:get()) end)
+    local ok, err = pcall(OnIslandCleared)
     if not ok then log("Error handling island-clear: %s", tostring(err)) end
 end)
 

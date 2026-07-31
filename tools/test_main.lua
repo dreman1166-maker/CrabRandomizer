@@ -245,7 +245,7 @@ io.write("\n[14] Console output actually reaches the in-game console (ar:Log)\n"
 Mock.playerStates = { Mock.makePlayerState(true) }
 loadMain()
 Mock.runCommand("randomizestatus")
-check("randomizestatus writes version to ar", Mock.arContains("version = 1.5.1"))
+check("randomizestatus writes version to ar", Mock.arContains("version = 1.6.0"))
 check("randomizestatus writes pool info to ar", Mock.arContains("Pool CrabPerkDA"))
 
 Mock.runCommand("randomizeauthority")
@@ -547,6 +547,34 @@ check("pool grew to the full set after assets loaded",
     Mock.arContains("Pool CrabPerkDA [CrabPerkDA] has " .. #fullPerks .. " entries"),
     "expected " .. #fullPerks)
 check("growth is reported", Mock.outputContains("assets finished loading"))
+
+-- =====================================================================
+-- THE crash guard. A real client log had ZERO "cleared an island" lines while the game
+-- crashed on every island clear: the handler was dying on object access before it could
+-- log. ClientOnClearedIsland fires during level teardown, so Context:get(), PlayerState,
+-- :IsValid() and :GetFullName() can all touch freed/null memory - a native fault no pcall
+-- catches. The hook must therefore touch NOTHING.
+io.write("\n[23] Island-clear hook touches no game objects\n")
+Mock.playerStates = { Mock.makePlayerState(true) }
+loadMain()
+Mock.runCommand("randomizepreset", "default")
+Mock.runCommand("randomizeset", "islandsBeforeRandomizing", "1")
+
+-- A Context whose every access explodes, standing in for teardown-time memory.
+local hostileContext = setmetatable({}, {
+    __index = function() error("Context was touched - this is what crashed clients") end
+})
+
+local cb = Mock.hooks["/Script/CrabChampions.CrabPC:ClientOnClearedIsland"]
+local beforeHostile = Mock.perkNames(Mock.playerStates[1])
+Mock.clearOutput()
+local survived = pcall(cb, hostileContext, false)
+check("hook survives a hostile Context", survived)
+check("island still counted", Mock.outputContains("Island cleared"))
+check("shuffle still happened", Mock.perkNames(Mock.playerStates[1]) ~= beforeHostile)
+
+-- And with no Context at all.
+check("hook survives a nil Context", pcall(cb, nil, false))
 
 -- =====================================================================
 io.write(string.format("\n==== %d passed, %d failed ====\n", passed, failed))
