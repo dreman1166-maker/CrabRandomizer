@@ -110,17 +110,35 @@ local p1, p2 = Mock.perkNames(Mock.playerStates[1]), Mock.perkNames(Mock.playerS
 check("mirror: both players identical after shuffle", p1 == p2, p1 .. " / " .. p2)
 check("mirror: loadout actually changed", p1 ~= p1before)
 
+-- The base loadout was the whole reason mirror looked broken in a real co-op session:
+-- these three were rolled independently per player in EVERY mode, and the preset hid it
+-- by turning them off. Assert the visible half of the loadout, not just the slot arrays.
+check("mirror: both players got the SAME weapon",
+      Mock.playerStates[1].WeaponDA == Mock.playerStates[2].WeaponDA)
+check("mirror: both players got the SAME ability",
+      Mock.playerStates[1].AbilityDA == Mock.playerStates[2].AbilityDA)
+check("mirror: both players got the SAME melee",
+      Mock.playerStates[1].MeleeDA == Mock.playerStates[2].MeleeDA)
+check("mirror: the base loadout was actually equipped",
+      Mock.playerStates[1].equipCalls > 0 and Mock.playerStates[2].equipCalls > 0)
+
 -- =====================================================================
 io.write("\n[6] Swap mode trades loadouts between players\n")
 Mock.playerStates = { Mock.makePlayerState(true), Mock.makePlayerState(true) }
 loadMain()
 Mock.seedDistinctLoadouts()
 Mock.runCommand("randomizepreset", "swap")
+-- makePlayerState hands everyone pool[1], so give them different guns to trade.
+Mock.playerStates[1].WeaponDA = Mock.pools.CrabWeaponDA[1]
+Mock.playerStates[2].WeaponDA = Mock.pools.CrabWeaponDA[2]
 local a0, b0 = Mock.perkNames(Mock.playerStates[1]), Mock.perkNames(Mock.playerStates[2])
+local aw0, bw0 = Mock.playerStates[1].WeaponDA, Mock.playerStates[2].WeaponDA
 Mock.runCommand("randomizenow")
 local a1, b1 = Mock.perkNames(Mock.playerStates[1]), Mock.perkNames(Mock.playerStates[2])
 check("swap: player1 now holds player2's old perks", a1 == b0, a1 .. " expected " .. b0)
 check("swap: player2 now holds player1's old perks", b1 == a0, b1 .. " expected " .. a0)
+check("swap: player1 now holds player2's old weapon", Mock.playerStates[1].WeaponDA == bw0)
+check("swap: player2 now holds player1's old weapon", Mock.playerStates[2].WeaponDA == aw0)
 
 Mock.playerStates = { Mock.makePlayerState(true) }
 loadMain()
@@ -245,7 +263,9 @@ io.write("\n[14] Console output actually reaches the in-game console (ar:Log)\n"
 Mock.playerStates = { Mock.makePlayerState(true) }
 loadMain()
 Mock.runCommand("randomizestatus")
-check("randomizestatus writes version to ar", Mock.arContains("version = 1.6.1"))
+-- Matched by shape, not by literal: hardcoding the number here meant every release bump
+-- produced a spurious failure and taught you to ignore this test.
+check("randomizestatus writes version to ar", Mock.arMatches("version = %d+%.%d+%.%d+"))
 check("randomizestatus writes pool info to ar", Mock.arContains("Pool CrabPerkDA"))
 
 Mock.runCommand("randomizeauthority")

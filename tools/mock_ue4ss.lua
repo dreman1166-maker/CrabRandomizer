@@ -223,6 +223,16 @@ function Mock.arContains(needle)
     return false
 end
 
+--- Like arContains but treats the needle as a Lua pattern, for assertions that should not
+--- be pinned to a literal (version numbers, counts, timings).
+function Mock.arMatches(pattern)
+    if not Mock.lastAr then return false end
+    for _, line in ipairs(Mock.lastAr.lines) do
+        if line:find(pattern) then return true end
+    end
+    return false
+end
+
 package.loaded["UEHelpers"] = {
     GetPlayerController = function()
         return {

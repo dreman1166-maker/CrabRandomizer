@@ -28,7 +28,7 @@ if not okHelpers then UEHelpers = nil end
 -- sandbox has no networking API, and this isn't a standalone app for something like
 -- Velopack to attach to. Nexus/Vortex's own "update available" tracking is the signal;
 -- this constant just lets anyone confirm which build they're running.
-local MOD_VERSION = "1.6.1"
+local MOD_VERSION = "1.7.0"
 
 local MOD_TAG = "[CrabRandomizer]"
 
@@ -309,17 +309,21 @@ local Presets = {
         rollMode = "uniform", islandsBeforeRandomizing = 1, minimumRarity = 1,
         coopMode = "independent",
     },
+    -- weapon/ability/melee used to be false in both of these, because mirror and swap were
+    -- only implemented for the slot arrays - leaving them on would have handed each player
+    -- a DIFFERENT gun while claiming to mirror. They are handled properly now, so the
+    -- presets no longer have to switch off the most visible half of the loadout.
     mirror = {
         randomizeWeaponMods = true, randomizeAbilityMods = true, randomizeMeleeMods = true, randomizeGrenadeMods = true,
         randomizePerks = true, randomizeRelics = true,
-        randomizeWeapon = false, randomizeAbility = false, randomizeMelee = false,
-        rollMode = "weighted", islandsBeforeRandomizing = 3, coopMode = "mirror",
+        randomizeWeapon = true, randomizeAbility = true, randomizeMelee = true,
+        rollMode = "weighted", islandsBeforeRandomizing = 1, coopMode = "mirror",
     },
     swap = {
         randomizeWeaponMods = true, randomizeAbilityMods = true, randomizeMeleeMods = true, randomizeGrenadeMods = true,
         randomizePerks = true, randomizeRelics = true,
-        randomizeWeapon = false, randomizeAbility = false, randomizeMelee = false,
-        islandsBeforeRandomizing = 3, coopMode = "swap",
+        randomizeWeapon = true, randomizeAbility = true, randomizeMelee = true,
+        islandsBeforeRandomizing = 1, coopMode = "swap",
     },
 }
 
@@ -832,7 +836,41 @@ end
 --- joiner crashed on every loadout change. Only the authoritative machine mutates
 --- anything now - the same rule the mod/perk/relic path already used. Solo play is
 --- unaffected: a solo player IS the authority.
-local function RandomizeBaseLoadout(ps, hasAuthority, localPS, playerLabel)
+--- Rolls ONE base loadout. Split out of RandomizeBaseLoadout so coopMode=mirror can roll
+--- a single result and hand the same one to every player.
+---
+--- A slot is left nil when that slot is not being randomized; nil means "keep whatever
+--- this player already has", which is inherently per-player and so is resolved inside
+--- RandomizeBaseLoadout rather than here.
+local function RollBaseLoadout()
+    local roll = {}
+
+    if Config.randomizeWeapon then
+        local validWeapons = {}
+        for _, da in ipairs(GetPool("CrabWeaponDA")) do
+            local ok, full = pcall(function() return da:GetFullName() end)
+            if ok and not string.find(full, "Enemy") then table.insert(validWeapons, da) end
+        end
+        if #validWeapons > 0 then roll.weapon = UniformPick(validWeapons) end
+    end
+
+    if Config.randomizeAbility then
+        local pool = GetPool("CrabAbilityDA")
+        if #pool > 0 then roll.ability = UniformPick(pool) end
+    end
+
+    if Config.randomizeMelee then
+        local pool = GetPool("CrabMeleeDA")
+        if #pool > 0 then roll.melee = UniformPick(pool) end
+    end
+
+    return roll
+end
+
+--- `forced` (optional) supplies an already-decided {weapon, ability, melee}. mirror passes
+--- one shared roll to everybody; swap passes the donor player's snapshot. Omit it and this
+--- rolls independently, which is what independent mode and solo play want.
+local function RandomizeBaseLoadout(ps, hasAuthority, localPS, playerLabel, forced)
     if not hasAuthority then
         log("Skipping weapon/ability/melee swap for %s - not authoritative (the HOST applies this for everyone)", playerLabel)
         return
@@ -841,24 +879,10 @@ local function RandomizeBaseLoadout(ps, hasAuthority, localPS, playerLabel)
     local beforeWeapon, beforeAbility, beforeMelee = ps.WeaponDA, ps.AbilityDA, ps.MeleeDA
     local weapon, ability, melee = beforeWeapon, beforeAbility, beforeMelee
 
-    if Config.randomizeWeapon then
-        local validWeapons = {}
-        for _, da in ipairs(GetPool("CrabWeaponDA")) do
-            local ok, full = pcall(function() return da:GetFullName() end)
-            if ok and not string.find(full, "Enemy") then table.insert(validWeapons, da) end
-        end
-        if #validWeapons > 0 then weapon = UniformPick(validWeapons) end
-    end
-
-    if Config.randomizeAbility then
-        local pool = GetPool("CrabAbilityDA")
-        if #pool > 0 then ability = UniformPick(pool) end
-    end
-
-    if Config.randomizeMelee then
-        local pool = GetPool("CrabMeleeDA")
-        if #pool > 0 then melee = UniformPick(pool) end
-    end
+    local roll = forced or RollBaseLoadout()
+    if roll.weapon  ~= nil then weapon  = roll.weapon  end
+    if roll.ability ~= nil then ability = roll.ability end
+    if roll.melee   ~= nil then melee   = roll.melee   end
 
     if Config.dryRun then
         log("[dry-run] %s base loadout: %s / %s / %s -> %s / %s / %s", playerLabel,
@@ -958,6 +982,18 @@ local function RandomizeEveryone()
         end
     end
 
+    -- mirror/swap are no-ops with one player, and the usual cause of "mirror isn't
+    -- working" is the second player never reaching this list. Say so plainly.
+    if Config.coopMode ~= "independent" then
+        log("coopMode=%s: %d player(s) found, %d authoritative",
+            Config.coopMode, #players, #authoritative)
+        if #authoritative < 2 then
+            log("  -> only %d player(s) can be written to, so %s has nothing to act on. "
+                .. "Run this on the HOST; a joining client is never authoritative.",
+                #authoritative, Config.coopMode)
+        end
+    end
+
     if anyMods and #authoritative > 0 then
         if Config.coopMode == "mirror" then
             for _, def in ipairs(SlotDefs) do
@@ -978,9 +1014,44 @@ local function RandomizeEveryone()
 
     -- Iterate `authoritative`, not `players`: a non-authoritative client must not touch
     -- base loadouts at all (see RandomizeBaseLoadout - doing so crashed joining clients).
+    --
+    -- This branch used to roll independently for every player REGARDLESS of coopMode, so
+    -- mirror and swap only ever applied to mods/perks/relics. The weapon and melee are the
+    -- most visible things a player has, so mirror looked completely broken even though the
+    -- slot arrays behind it were mirroring correctly.
     if anyBase then
-        for _, entry in ipairs(authoritative) do
-            RandomizeBaseLoadout(entry.ps, entry.hasAuth, localPS, entry.label)
+        if Config.coopMode == "mirror" then
+            local shared = RollBaseLoadout()
+            for _, entry in ipairs(authoritative) do
+                RandomizeBaseLoadout(entry.ps, entry.hasAuth, localPS, entry.label, shared)
+            end
+
+        elseif Config.coopMode == "swap" then
+            if #authoritative < 2 then
+                log("coopMode=swap needs at least 2 players - skipping base loadout")
+            else
+                -- Snapshot everyone BEFORE writing anything, or player 2 would receive
+                -- what player 1 was just given rather than what they originally had.
+                -- Only carry the slots that are actually enabled; a disabled slot stays
+                -- nil so the receiving player keeps their own.
+                local snaps = {}
+                for i, entry in ipairs(authoritative) do
+                    local snap = {}
+                    if Config.randomizeWeapon  then snap.weapon  = entry.ps.WeaponDA  end
+                    if Config.randomizeAbility then snap.ability = entry.ps.AbilityDA end
+                    if Config.randomizeMelee   then snap.melee   = entry.ps.MeleeDA   end
+                    snaps[i] = snap
+                end
+                for i, entry in ipairs(authoritative) do
+                    RandomizeBaseLoadout(entry.ps, entry.hasAuth, localPS, entry.label,
+                                         snaps[(i % #authoritative) + 1])
+                end
+            end
+
+        else
+            for _, entry in ipairs(authoritative) do
+                RandomizeBaseLoadout(entry.ps, entry.hasAuth, localPS, entry.label)
+            end
         end
     end
 
