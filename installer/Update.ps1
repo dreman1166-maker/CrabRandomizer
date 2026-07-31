@@ -148,10 +148,26 @@ try {
         Say "Kept $($existing.Count) existing setting(s); backup at randoconfig.txt.bak" "Green"
     }
 
+    # The log lives inside the mod folder, so removing the folder destroys the single
+    # most useful diagnostic artefact right when someone is mid-way through debugging a
+    # crash. Stash it and put it back.
+    $logPath = Join-Path $modDir "Scripts\crabrandomizer.log"
+    $stashedLog = $null
+    if (Test-Path $logPath) {
+        $stashedLog = Join-Path $env:TEMP "crabrandomizer.log.keep"
+        Copy-Item $logPath $stashedLog -Force
+    }
+
     $destMods = Join-Path $GameDir "Mods"
     New-Item -ItemType Directory -Path $destMods -Force | Out-Null
     if (Test-Path $modDir) { Remove-Item $modDir -Recurse -Force }
     Copy-Item $newMod $destMods -Recurse -Force
+
+    if ($stashedLog -and (Test-Path $stashedLog)) {
+        Copy-Item $stashedLog $logPath -Force
+        Remove-Item $stashedLog -Force
+        Say "Preserved your existing crabrandomizer.log" "Green"
+    }
 
     if ($existing.Count -gt 0) {
         $merged = New-Object System.Collections.Generic.List[string]
