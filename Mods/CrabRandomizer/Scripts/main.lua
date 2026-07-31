@@ -28,7 +28,7 @@ if not okHelpers then UEHelpers = nil end
 -- sandbox has no networking API, and this isn't a standalone app for something like
 -- Velopack to attach to. Nexus/Vortex's own "update available" tracking is the signal;
 -- this constant just lets anyone confirm which build they're running.
-local MOD_VERSION = "1.6.0"
+local MOD_VERSION = "1.6.1"
 
 local MOD_TAG = "[CrabRandomizer]"
 
@@ -59,14 +59,24 @@ local CurrentAr = nil
 -- precedent rather than holding an arbitrary native pointer. Populated by the first
 -- console command run in a session; until then, keybind output goes to the debug
 -- window / log file only.
-local LastAr = nil
 
+--- ONLY writes to the device UE4SS handed us for the CURRENTLY EXECUTING console
+--- command. It must never use a cached one.
+---
+--- 1.4.1 cached the last device (LastAr) so keybind output could reach the console too.
+--- That put a dereference of a stale native pointer on EVERY log call: once the output
+--- device is destroyed (level change, console closed) both target:type() and target:Log()
+--- touch freed memory, which is a native fault pcall cannot catch. A client log ended
+--- exactly at a log() call during an island transition with the game dead immediately
+--- after, which is what that would look like.
+---
+--- The cost is that keybind output no longer appears in the in-game console - it still
+--- goes to print() and to crabrandomizer.log. Not crashing wins.
 local function ArLog(line)
-    local target = CurrentAr or LastAr
-    if target == nil then return end
+    if CurrentAr == nil then return end
     pcall(function()
-        if type(target) == "userdata" and target:type() == "FOutputDevice" then
-            target:Log(line)
+        if type(CurrentAr) == "userdata" and CurrentAr:type() == "FOutputDevice" then
+            CurrentAr:Log(line)
         end
     end)
 end
@@ -1175,7 +1185,6 @@ local function Command(name, handler)
         -- Route log() into the in-game console for the duration of this command, then
         -- clear it so background/hook logging doesn't touch a stale output device.
         CurrentAr = ar
-        if ar ~= nil then LastAr = ar end -- so keybind output has somewhere to go too
         local ok, err = pcall(handler, parts or {})
         if not ok then log("%s failed: %s", name, tostring(err)) end
         CurrentAr = nil

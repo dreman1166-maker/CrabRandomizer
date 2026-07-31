@@ -3,6 +3,22 @@
 Versions are declared in `Mods/CrabRandomizer/Scripts/main.lua` (`MOD_VERSION`); CI fails if
 this file has no matching entry. Check yours in game with `randomizestatus`.
 
+## [1.6.1]
+
+**Removes a cached native pointer that crashed the game right after an island clear.**
+
+1.4.1 cached UE4SS's FOutputDevice (LastAr) so keybind output could also reach the
+in-game console. That put a dereference of a stale native pointer on EVERY log() call:
+once the device is destroyed - level change, console closed - both `target:type()` and
+`target:Log()` touch freed memory, and a native fault cannot be caught by pcall.
+
+A client log ended exactly at a log() call during an island transition, with the game
+dying immediately after and the next line never written. log() now only writes to the
+device for the currently executing console command, never a cached one.
+
+Cost: keybind text no longer appears in the in-game console. It still goes to the UE4SS
+debug output and to crabrandomizer.log. Not crashing wins.
+
 ## [1.6.0]
 
 **Fixes the client crash on island clear.** Two diagnostic bundles from an affected

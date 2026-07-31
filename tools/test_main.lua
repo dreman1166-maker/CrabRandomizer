@@ -245,7 +245,7 @@ io.write("\n[14] Console output actually reaches the in-game console (ar:Log)\n"
 Mock.playerStates = { Mock.makePlayerState(true) }
 loadMain()
 Mock.runCommand("randomizestatus")
-check("randomizestatus writes version to ar", Mock.arContains("version = 1.6.0"))
+check("randomizestatus writes version to ar", Mock.arContains("version = 1.6.1"))
 check("randomizestatus writes pool info to ar", Mock.arContains("Pool CrabPerkDA"))
 
 Mock.runCommand("randomizeauthority")
@@ -281,12 +281,16 @@ local arAfterCommand = Mock.lastAr
 arAfterCommand.lines = {}
 
 if ctrlK then ctrlK() end
-check("Ctrl+K menu text reaches the console", (function()
+-- Keybind output must NOT reach the console any more: that required caching UE4SS's
+-- FOutputDevice, and dereferencing that stale pointer later crashed the game mid-island
+-- transition. Keybind text now goes to print()/the log file only - a deliberate trade.
+check("Ctrl+K does not use a cached output device", (function()
     for _, l in ipairs(arAfterCommand.lines) do
-        if l:find("quick menu", 1, true) then return true end
+        if l:find("quick menu", 1, true) then return false end
     end
-    return false
+    return true
 end)(), table.concat(arAfterCommand.lines, " | "))
+check("Ctrl+K still works (menu goes to log)", Mock.outputContains("quick menu"))
 
 -- =====================================================================
 io.write("\n[15] Grenade mods shuffle when the pool exists\n")
