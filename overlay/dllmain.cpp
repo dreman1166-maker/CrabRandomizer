@@ -35,6 +35,7 @@
 #include <fstream>
 #include <sstream>
 #include <algorithm>
+#include <cstdarg>
 
 #include "MinHook.h"
 #include "imgui.h"
@@ -47,8 +48,32 @@ extern IMGUI_IMPL_API LRESULT ImGui_ImplWin32_WndProcHandler(HWND, UINT, WPARAM,
 
 namespace {
 
-using PresentFn = HRESULT(__stdcall*)(IDXGISwapChain*, UINT, UINT);
-PresentFn oPresent = nullptr;
+using PresentFn  = HRESULT(__stdcall*)(IDXGISwapChain*, UINT, UINT);
+using Present1Fn = HRESULT(__stdcall*)(IDXGISwapChain1*, UINT, UINT, const DXGI_PRESENT_PARAMETERS*);
+PresentFn  oPresent  = nullptr;
+Present1Fn oPresent1 = nullptr;
+void* gPresent1Addr = nullptr;
+
+// Shipping v1 with no logging was a mistake: "Ctrl+K does nothing" could mean the DLL never
+// loaded, the hook never installed, Present is never called, or the window hook failed, and
+// there was no way to tell them apart from outside. Everything of consequence is recorded.
+void Log(const char* fmt, ...) {
+    char path[MAX_PATH]{};
+    GetModuleFileNameA(nullptr, path, MAX_PATH);
+    std::string p(path);
+    size_t s = p.find_last_of("\\/");
+    p = (s == std::string::npos ? std::string(".") : p.substr(0, s)) + "\\CrabOverlay.log";
+
+    FILE* f = fopen(p.c_str(), "a");
+    if (!f) return;
+    SYSTEMTIME t; GetLocalTime(&t);
+    fprintf(f, "[%02d:%02d:%02d] ", t.wHour, t.wMinute, t.wSecond);
+    va_list ap; va_start(ap, fmt);
+    vfprintf(f, fmt, ap);
+    va_end(ap);
+    fprintf(f, "\n");
+    fclose(f);
+}
 
 WNDPROC  oWndProc  = nullptr;
 HWND     gWindow   = nullptr;
@@ -311,16 +336,22 @@ bool InitFromSwapChain(IDXGISwapChain* sc) {
     return true;
 }
 
-HRESULT __stdcall HookedPresent(IDXGISwapChain* sc, UINT sync, UINT flags) {
-    if (gInitFailed) return oPresent(sc, sync, flags);
+long gPresentCalls = 0;
+
+// Shared body for both Present and Present1.
+void RenderOverlay(IDXGISwapChain* sc) {
+    if (gInitFailed) return;
+
+    if (++gPresentCalls == 1) Log("Present reached the hook (first frame)");
 
     if (!gInitDone) {
         if (!InitFromSwapChain(sc)) {
-            // Latch off rather than retrying sixty times a second forever.
+            Log("InitFromSwapChain FAILED - overlay is now a passthrough");
             gInitFailed = true;
-            return oPresent(sc, sync, flags);
+            return;
         }
         gInitDone = true;
+        Log("ImGui initialised, window=%p, scripts=%s", (void*)gWindow, gScriptsDir.c_str());
     }
 
     if (gMenuOpen && gRTV) {
@@ -332,8 +363,19 @@ HRESULT __stdcall HookedPresent(IDXGISwapChain* sc, UINT sync, UINT flags) {
         gContext->OMSetRenderTargets(1, &gRTV, nullptr);
         ImGui_ImplDX11_RenderDrawData(ImGui::GetDrawData());
     }
+}
 
+HRESULT __stdcall HookedPresent(IDXGISwapChain* sc, UINT sync, UINT flags) {
+    RenderOverlay(sc);
     return oPresent(sc, sync, flags);
+}
+
+// UE4 on DX11 with the flip model calls Present1, NOT Present. Hooking only slot 8 means
+// the hook silently never fires - which is exactly the "nothing happens" symptom. Hook both.
+HRESULT __stdcall HookedPresent1(IDXGISwapChain1* sc, UINT sync, UINT flags,
+                                 const DXGI_PRESENT_PARAMETERS* params) {
+    RenderOverlay(reinterpret_cast<IDXGISwapChain*>(sc));
+    return oPresent1(sc, sync, flags, params);
 }
 
 // Get the Present address by creating a throwaway device+swapchain and reading its vtable.
@@ -373,7 +415,17 @@ void* FindPresent() {
     void* present = nullptr;
     if (SUCCEEDED(hr) && sc) {
         void** vtable = *reinterpret_cast<void***>(sc);
-        present = vtable[8];   // IDXGISwapChain::Present
+        present = vtable[8];    // IDXGISwapChain::Present
+        gPresent1Addr = nullptr;
+        IDXGISwapChain1* sc1 = nullptr;
+        if (SUCCEEDED(sc->QueryInterface(__uuidof(IDXGISwapChain1), (void**)&sc1)) && sc1) {
+            void** vt1 = *reinterpret_cast<void***>(sc1);
+            gPresent1Addr = vt1[22];   // IDXGISwapChain1::Present1
+            sc1->Release();
+        }
+        Log("Present=%p  Present1=%p", present, gPresent1Addr);
+    } else {
+        Log("dummy D3D11 device/swapchain creation FAILED hr=0x%08X", (unsigned)hr);
     }
     if (sc)  sc->Release();
     if (ctx) ctx->Release();
@@ -388,15 +440,24 @@ DWORD WINAPI Bootstrap(LPVOID) {
     // racing startup. This runs on our own thread, never the render thread.
     Sleep(4000);
 
-    if (MH_Initialize() != MH_OK) return 0;
-    void* present = FindPresent();
-    if (!present) { MH_Uninitialize(); return 0; }
+    Log("bootstrap: installing hooks");
+    if (MH_Initialize() != MH_OK) { Log("MH_Initialize FAILED"); return 0; }
 
-    if (MH_CreateHook(present, &HookedPresent, (LPVOID*)&oPresent) != MH_OK) {
-        MH_Uninitialize();
-        return 0;
-    }
-    MH_EnableHook(present);
+    void* present = FindPresent();
+    if (!present) { Log("could not resolve Present - aborting"); MH_Uninitialize(); return 0; }
+
+    if (MH_CreateHook(present, &HookedPresent, (LPVOID*)&oPresent) == MH_OK) {
+        MH_EnableHook(present);
+        Log("Present hook enabled");
+    } else Log("MH_CreateHook(Present) FAILED");
+
+    if (gPresent1Addr &&
+        MH_CreateHook(gPresent1Addr, &HookedPresent1, (LPVOID*)&oPresent1) == MH_OK) {
+        MH_EnableHook(gPresent1Addr);
+        Log("Present1 hook enabled");
+    } else Log("Present1 not hooked");
+
+    Log("bootstrap done - press Ctrl+K or Insert in game");
     return 0;
 }
 
