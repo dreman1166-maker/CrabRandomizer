@@ -28,7 +28,7 @@ if not okHelpers then UEHelpers = nil end
 -- sandbox has no networking API, and this isn't a standalone app for something like
 -- Velopack to attach to. Nexus/Vortex's own "update available" tracking is the signal;
 -- this constant just lets anyone confirm which build they're running.
-local MOD_VERSION = "1.8.2"
+local MOD_VERSION = "1.9.0"
 
 local MOD_TAG = "[CrabRandomizer]"
 
@@ -158,6 +158,18 @@ Config = {
 
     -- Poll for commands from the optional CrabRandomizerUI C++ mod (the ImGui menu).
     -- Harmless with no C++ mod installed: it just never finds a command file.
+    -- Force a perk into a slot and keep it there. Empty = off.
+    --
+    -- The exact asset name, not a guess: `randomizescan` in a live session listed
+    -- /Game/Blueprint/Pickup/Perk/Greed/DA_Perk_UpTheAnte. Greed perks are the game's
+    -- own risk/reward tier, so this makes runs harder by design rather than by fighting
+    -- the balance.
+    --
+    -- The randomizer is prevented from rolling this slot, otherwise the next shuffle would
+    -- immediately throw away the perk that was just forced.
+    forcedPerk = "",
+    forcedPerkSlot = 1,
+
     uiBridge = true,
 
     -- Milliseconds to wait after an island clear before shuffling. The transition
@@ -748,6 +760,10 @@ end
 --- Independent mode: each slot rolls its own replacement, avoiding immediate duplicates
 --- within this player's pass.
 local function RandomizeSlotArray(ps, def, playerLabel)
+    local forcedSlot = nil
+    if def.key == "randomizePerks" and Config.forcedPerk ~= nil and Config.forcedPerk ~= "" then
+        forcedSlot = math.floor(tonumber(Config.forcedPerkSlot) or 1)
+    end
     if not SubsystemAvailable(def) then return end
     local basePool = BuildBasePool(def)
     if not basePool then return end
@@ -755,7 +771,11 @@ local function RandomizeSlotArray(ps, def, playerLabel)
     local available = {}
     for _, da in ipairs(basePool) do table.insert(available, da) end
 
-    ApplyToSlots(ps, def, playerLabel, function(currentDA)
+    ApplyToSlots(ps, def, playerLabel, function(currentDA, index)
+        -- Skip the slot holding a forced perk, or the shuffle would roll it away and
+        -- EnforceForcedPerk would just put it back - a visible flicker every island.
+        if forcedSlot and index == forcedSlot then return nil end
+
         local candidates = available
 
         if Config.rollMode == "withinRarity" and currentDA and currentDA.Rarity then
@@ -1061,12 +1081,69 @@ local function RandomizeEveryone()
         end
     end
 
+    -- After randomizing, never before: a shuffle would otherwise discard the perk we just
+    -- forced into the slot.
+    if not Config.dryRun then EnforceForcedPerk(authoritative) end
+
     if Config.dryRun then
         log("[dry-run] no changes were actually applied (set dryRun=false to arm it)")
     else
         local modeNote = (Config.coopMode ~= "independent") and (" [" .. Config.coopMode .. "]") or ""
         AnnounceInChat("[CrabRandomizer] Loadouts shuffled!" .. modeNote)
     end
+end
+
+--- Finds a perk data asset by short name, e.g. "DA_Perk_UpTheAnte".
+--- Matches on the tail of GetFullName so either the bare name or a full path works.
+local function FindPerkByName(name)
+    if name == nil or name == "" then return nil end
+    local needle = name:lower()
+    for _, da in ipairs(GetPool("CrabPerkDA")) do
+        local ok, full = pcall(function() return da:GetFullName() end)
+        if ok and full and full:lower():find(needle, 1, true) then return da end
+    end
+    return nil
+end
+
+local ForcedPerkWarned = false
+
+--- Writes the forced perk into its slot for every authoritative player.
+---
+--- Called AFTER randomizing, so a shuffle cannot strip it. Authority-only, like every other
+--- write: a joining client must never touch replicated state (that is what crashed clients
+--- for a week).
+local function EnforceForcedPerk(players)
+    if Config.forcedPerk == nil or Config.forcedPerk == "" then return end
+
+    local def = nil
+    for _, d in ipairs(SlotDefs) do
+        if d.key == "randomizePerks" then def = d break end
+    end
+    if not def or not SubsystemAvailable(def) then return end
+
+    local da = FindPerkByName(Config.forcedPerk)
+    if not da then
+        if not ForcedPerkWarned then
+            ForcedPerkWarned = true
+            log("forcedPerk '%s' matched no perk asset - run 'randomizescan' for exact names",
+                tostring(Config.forcedPerk))
+        end
+        return
+    end
+    if not IsLive(da) then return end
+
+    local slot = math.floor(tonumber(Config.forcedPerkSlot) or 1)
+    if slot < 1 then slot = 1 end
+
+    for _, entry in ipairs(players) do
+        if entry.hasAuth then
+            ApplyToSlots(entry.ps, def, entry.label, function(_, index)
+                if index ~= slot then return nil end   -- nil = leave this slot alone
+                return da
+            end)
+        end
+    end
+    log("Forced perk '%s' held in perk slot %d", Config.forcedPerk, slot)
 end
 
 local function RerollSlotOnly(def)
