@@ -28,7 +28,7 @@ if not okHelpers then UEHelpers = nil end
 -- sandbox has no networking API, and this isn't a standalone app for something like
 -- Velopack to attach to. Nexus/Vortex's own "update available" tracking is the signal;
 -- this constant just lets anyone confirm which build they're running.
-local MOD_VERSION = "1.8.1"
+local MOD_VERSION = "1.8.2"
 
 local MOD_TAG = "[CrabRandomizer]"
 
@@ -1736,17 +1736,27 @@ end
 
 local UI_COMMAND_FILE = "uicommand.txt"
 
-local function ReadAndClearUICommand()
+--- Returns EVERY queued command, not just the first.
+---
+--- The overlay appends a line per interaction, so clicking three things inside one 500ms
+--- poll wrote three lines - and this used to read line one and delete the file, silently
+--- dropping the rest. Toggling several checkboxes quickly would apply only one of them.
+local function ReadAndClearUICommands()
     local base = ResolvedBasePath or BASE_PATHS[1]
     local path = base .. UI_COMMAND_FILE
     local f = io.open(path, "r")
     if not f then return nil end
-    local line = f:read("*l")
+
+    local cmds = {}
+    for line in f:lines() do
+        local trimmed = line:gsub("^%s+", ""):gsub("%s+$", "")
+        if trimmed ~= "" then cmds[#cmds + 1] = trimmed end
+    end
     f:close()
-    -- Consume it so the action fires exactly once.
-    os.remove(path)
-    if line == nil then return nil end
-    return (line:gsub("^%s+", ""):gsub("%s+$", ""))
+    os.remove(path)   -- consume, so each command fires exactly once
+
+    if #cmds == 0 then return nil end
+    return cmds
 end
 
 local function HandleUICommand(cmd)
@@ -1775,6 +1785,38 @@ local function HandleUICommand(cmd)
         else
             log("UI: unknown preset '%s'", tostring(name))
         end
+    elseif verb == "set" then
+        -- Every checkbox, dropdown and slider in the overlay sends this. Without it the
+        -- action buttons worked while nothing else did, which reads as "the menu is broken"
+        -- even though the bridge was fine.
+        local key, val = arg:match("^(%S+)%s+(.+)$")
+        if not key or not val then
+            log("UI: malformed set '%s'", tostring(arg))
+            return
+        end
+        if Config[key] == nil then
+            log("UI: '%s' is not a config key", key)
+            return
+        end
+
+        local current = Config[key]
+        if type(current) == "boolean" then
+            Config[key] = (val:lower() == "true")
+        elseif type(current) == "number" then
+            local n = tonumber(val)
+            if not n then log("UI: '%s' is not a number", val) return end
+            Config[key] = math.floor(n)
+        else
+            Config[key] = val
+        end
+
+        ValidateConfig()
+        SaveConfig()
+        log("UI: %s = %s", key, tostring(Config[key]))
+
+    elseif verb == "status" then
+        for _, k in ipairs(CONFIG_KEY_ORDER) do log("%s = %s", k, tostring(Config[k])) end
+
     else
         log("UI: unknown command '%s'", tostring(verb))
     end
@@ -1784,8 +1826,10 @@ if Config.uiBridge then
     local ok = pcall(function()
         LoopAsync(500, function()
             local okPoll, err = pcall(function()
-                local cmd = ReadAndClearUICommand()
-                if cmd then HandleUICommand(cmd) end
+                local cmds = ReadAndClearUICommands()
+                if cmds then
+                    for _, c in ipairs(cmds) do HandleUICommand(c) end
+                end
             end)
             if not okPoll then log("UI bridge error: %s", tostring(err)) end
             return false -- keep looping
