@@ -343,6 +343,13 @@ long gPresentCalls = 0;
 void RenderOverlay(IDXGISwapChain* sc) {
     if (gInitFailed) return;
 
+    // Hard guard against re-entry: an unbalanced NewFrame/Render pair is a crash, not a
+    // glitch, so this must hold even if a future hook path calls in twice.
+    static bool inRender = false;
+    if (inRender) return;
+    struct Guard { bool& f; ~Guard(){ f = false; } } g{ inRender };
+    inRender = true;
+
     if (++gPresentCalls == 1) Log("Present reached the hook (first frame)");
 
     if (!gInitDone) {
@@ -487,11 +494,10 @@ DWORD WINAPI Bootstrap(LPVOID) {
         Log("Present hook enabled");
     } else Log("MH_CreateHook(Present) FAILED");
 
-    if (gPresent1Addr &&
-        MH_CreateHook(gPresent1Addr, &HookedPresent1, (LPVOID*)&oPresent1) == MH_OK) {
-        MH_EnableHook(gPresent1Addr);
-        Log("Present1 hook enabled");
-    } else Log("Present1 not hooked");
+    // Present1 is deliberately NOT hooked. DXGI routes Present1 through Present, so
+    // hooking both fired the render path TWICE per frame - ImGui::NewFrame() twice with
+    // no Render() between them, which crashed the game as soon as the menu was opened.
+    // The log proved Present alone is reached, so it is sufficient on its own.
 
     Log("bootstrap done - press Ctrl+K or Insert in game");
     return 0;
