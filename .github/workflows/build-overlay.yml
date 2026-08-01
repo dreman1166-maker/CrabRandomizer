@@ -1,0 +1,74 @@
+# Builds the standalone D3D11/ImGui overlay DLL.
+#
+# Unlike the abandoned build-cpp.yml, this compiles NOTHING from UE4SS - so the dead
+# UEPseudo submodule cannot block it. Only ImGui + MinHook + the Windows SDK.
+
+name: build-overlay
+
+on:
+  push:
+    paths:
+      - "overlay/**"
+      - ".github/workflows/build-overlay.yml"
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: windows-latest
+    timeout-minutes: 25
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: ilammy/msvc-dev-cmd@v1
+        with:
+          arch: x64
+
+      - name: Configure
+        working-directory: overlay
+        run: cmake -B build -A x64 -DCMAKE_BUILD_TYPE=Release
+
+      - name: Build
+        working-directory: overlay
+        run: cmake --build build --config Release
+
+      - name: Package
+        shell: bash
+        working-directory: overlay
+        run: |
+          dll=$(find build -name "main.dll" | head -1)
+          if [ -z "$dll" ]; then
+            echo "::error::main.dll was not produced"
+            find build -name "*.dll" | head -20
+            exit 1
+          fi
+          echo "built: $dll  ($(stat -c%s "$dll") bytes)"
+          mkdir -p ../out/Mods/CrabRandomizerOverlay/dlls
+          cp "$dll" ../out/Mods/CrabRandomizerOverlay/dlls/main.dll
+          cat > ../out/INSTALL.txt <<'EOF'
+          CrabRandomizer overlay - clickable in-game menu
+          ==============================================
+
+          Draws over the game by hooking DirectX, so it works even though Crab Champions
+          renders its HUD entirely through UMG (which is why the Lua attempt could not).
+
+          INSTALL
+            1. Copy the "Mods\CrabRandomizerOverlay" folder into
+                 ...\Crab Champions\CrabChampions\Binaries\Win64\Mods\
+            2. Add this line to ...\Binaries\Win64\Mods\mods.txt
+                 CrabRandomizerOverlay : 1
+            3. Launch the game and press Ctrl+K  (or Insert if the game eats Ctrl+K)
+
+          NOTES
+            - Needs the CrabRandomizer Lua mod installed; the overlay only edits its config
+              and sends it commands through a text file. It never touches game memory.
+            - This is NOT a content .pak, so it does not have to match your co-op partner's
+              mods. It cannot cause a join to fail.
+            - To remove it: delete the folder, or set the mods.txt line to 0.
+          EOF
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: CrabRandomizerOverlay
+          path: out/**
+          if-no-files-found: error
