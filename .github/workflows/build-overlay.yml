@@ -57,7 +57,7 @@ jobs:
                  ...\Crab Champions\CrabChampions\Binaries\Win64\Mods\
             2. Add this line to ...\Binaries\Win64\Mods\mods.txt
                  CrabRandomizerOverlay : 1
-            3. Launch the game and press Ctrl+K  (or Insert if the game eats Ctrl+K)
+            3. Launch the game and press F8  (or Insert)
 
           NOTES
             - Needs the CrabRandomizer Lua mod installed; the overlay only edits its config

@@ -277,7 +277,7 @@ void DrawMenu() {
     if (ImGui::Button("Reload config", ImVec2(120, 30))) LoadConfig();
 
     ImGui::Spacing();
-    ImGui::TextDisabled("Ctrl+K or Insert closes this. Changes are applied by the Lua mod.");
+    ImGui::TextDisabled("F8 or Insert closes this. Changes are applied by the Lua mod.");
     ImGui::End();
 }
 
@@ -288,7 +288,7 @@ LRESULT WINAPI HookedWndProc(HWND hWnd, UINT msg, WPARAM wp, LPARAM lp) {
     // there is still a way in.
     if (msg == WM_KEYDOWN) {
         bool ctrl = (GetAsyncKeyState(VK_CONTROL) & 0x8000) != 0;
-        if ((ctrl && wp == 'K') || wp == VK_INSERT) {
+        if (wp == VK_F8 || wp == VK_INSERT) {
             gMenuOpen = !gMenuOpen;
             if (gMenuOpen) LoadConfig();
             return 0;   // swallow, so the game does not also act on it
@@ -369,11 +369,13 @@ void RenderOverlay(IDXGISwapChain* sc) {
     // log proved rendering worked while Ctrl+K did nothing, which isolated it to input.
     // Present runs every frame, so poll here instead - it cannot be intercepted.
     {
+        // F8, not Ctrl+K: Ctrl+K is already the Lua mod's text quick-menu, so one press
+        // fired both and the two menus fought over the same key. A bare function key is
+        // also unused by the game and needs no modifier held.
         static bool prevToggle = false;
-        bool ctrl = (GetAsyncKeyState(VK_CONTROL) & 0x8000) != 0;
-        bool k    = (GetAsyncKeyState('K')        & 0x8000) != 0;
-        bool ins  = (GetAsyncKeyState(VK_INSERT)  & 0x8000) != 0;
-        bool now  = (ctrl && k) || ins;
+        bool f8  = (GetAsyncKeyState(VK_F8)     & 0x8000) != 0;
+        bool ins = (GetAsyncKeyState(VK_INSERT) & 0x8000) != 0;
+        bool now = f8 || ins;
         if (now && !prevToggle) {          // rising edge only, or it flips every frame
             gMenuOpen = !gMenuOpen;
             if (gMenuOpen) LoadConfig();
@@ -511,7 +513,7 @@ DWORD WINAPI Bootstrap(LPVOID) {
     // no Render() between them, which crashed the game as soon as the menu was opened.
     // The log proved Present alone is reached, so it is sufficient on its own.
 
-    Log("bootstrap done - press Ctrl+K or Insert in game");
+    Log("bootstrap done - press F8 (or Insert) in game");
     return 0;
 }
 
