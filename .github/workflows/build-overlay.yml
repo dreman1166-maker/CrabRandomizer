@@ -72,3 +72,56 @@ jobs:
           name: CrabRandomizerOverlay
           path: out/**
           if-no-files-found: error
+
+  # Plan B (docs/overlay-gui-plan.md): the standalone transparent overlay EXE. Separate job
+  # because it shares no code with the DLL and must not be blocked by it.
+  standalone:
+    runs-on: windows-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ilammy/msvc-dev-cmd@v1
+        with:
+          arch: x64
+
+      - name: Configure
+        working-directory: overlay/standalone
+        run: cmake -B build -A x64 -DCMAKE_BUILD_TYPE=Release
+
+      - name: Build
+        working-directory: overlay/standalone
+        run: cmake --build build --config Release
+
+      - name: Package
+        shell: bash
+        working-directory: overlay/standalone
+        run: |
+          exe=$(find build -name "CrabOverlayApp.exe" | head -1)
+          if [ -z "$exe" ]; then
+            echo "::error::CrabOverlayApp.exe was not produced"
+            find build -name "*.exe" | head -10
+            exit 1
+          fi
+          echo "built: $exe ($(stat -c%s "$exe") bytes)"
+          mkdir -p ../../outapp
+          cp "$exe" ../../outapp/CrabOverlayApp.exe
+          cat > ../../outapp/README.txt <<'EOF'
+          CrabRandomizer Overlay (standalone)
+          ===================================
+
+          Run CrabOverlayApp.exe. Press F8 to show/hide the menu.
+
+          This does NOT modify the game. It is a separate transparent window drawn on top,
+          so it cannot crash Crab Champions and cannot affect co-op. Close it to remove it.
+
+          Needs the CrabRandomizer Lua mod installed - the overlay reads its config and
+          sends it commands through a text file.
+
+          NOTE: will not appear over EXCLUSIVE fullscreen. Use Borderless or Windowed.
+          EOF
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: CrabOverlayApp
+          path: outapp/**
+          if-no-files-found: error
