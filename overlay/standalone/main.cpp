@@ -67,14 +67,18 @@ std::string gStatus = "starting";
 std::map<std::string, std::string> gConfig;
 bool gConfigLoaded = false;
 
+// "Grenade mods" is deliberately absent. This build of Crab Champions ships no
+// CrabGrenadeModDA data assets - the mod logs "GrenadeMods randomization DISABLED" and
+// degrades that slot - so the checkbox could never do anything and only looked broken.
+// The config key still exists; it is settable from the console if a future patch adds them.
 const char* kToggles[] = {
     "randomizeWeaponMods", "randomizeAbilityMods", "randomizeMeleeMods",
-    "randomizeGrenadeMods", "randomizePerks", "randomizeRelics",
+    "randomizePerks", "randomizeRelics",
     "randomizeWeapon", "randomizeAbility", "randomizeMelee",
 };
 const char* kToggleLabels[] = {
     "Weapon mods", "Ability mods", "Melee mods",
-    "Grenade mods", "Perks", "Relics",
+    "Perks", "Relics",
     "Weapon", "Ability", "Melee",
 };
 const char* kPresets[]   = { "off", "gentle", "default", "chaos", "mirror", "swap" };
@@ -243,7 +247,7 @@ void DrawMenu() {
     for (int i = 0; i < IM_ARRAYSIZE(kToggles); ++i) {
         bool v = GetBool(kToggles[i]);
         if (ImGui::Checkbox(kToggleLabels[i], &v)) SetConfig(kToggles[i], v ? "true" : "false");
-        if (i == 5) ImGui::Separator();
+        if (i == 4) ImGui::Separator();   // slot arrays | base loadout, shifted by the grenade removal
     }
 
     ImGui::Spacing();
