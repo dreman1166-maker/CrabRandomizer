@@ -45,6 +45,12 @@ target_include_directories(imgui PUBLIC ${imgui_SOURCE_DIR})
 
 add_library(CrabRandomizerOverlay SHARED dllmain.cpp)
 
+# minhook's exported target does not propagate its include dir, so point at it explicitly
+# rather than relying on the target's INTERFACE (which is empty).
+target_include_directories(CrabRandomizerOverlay PRIVATE
+    ${minhook_SOURCE_DIR}/include
+)
+
 target_link_libraries(CrabRandomizerOverlay PRIVATE
     imgui
     minhook
