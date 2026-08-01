@@ -382,7 +382,7 @@ void RenderOverlay(IDXGISwapChain* sc) {
         prevToggle = now;
     }
 
-    if (gMenuOpen && gRTV) {
+    if (gMenuOpen) {
         // Feed ImGui input directly too. ImGui_ImplWin32 normally gets mouse buttons from
         // WndProc messages, which for the same reason never arrive - the menu would draw
         // but not respond to clicks.
@@ -403,8 +403,20 @@ void RenderOverlay(IDXGISwapChain* sc) {
         ImGui::NewFrame();
         DrawMenu();
         ImGui::Render();
-        gContext->OMSetRenderTargets(1, &gRTV, nullptr);
-        ImGui_ImplDX11_RenderDrawData(ImGui::GetDrawData());
+        // Acquire the back buffer EVERY FRAME. With the DXGI flip model - which UE4 uses -
+        // buffer 0 rotates after each Present, so the RTV cached at init pointed at an
+        // offscreen buffer. The menu was rendering perfectly into something never shown,
+        // which is why the log said OPENED while the screen showed nothing.
+        ID3D11Texture2D* bb = nullptr;
+        if (SUCCEEDED(sc->GetBuffer(0, __uuidof(ID3D11Texture2D), (void**)&bb)) && bb) {
+            ID3D11RenderTargetView* rtv = nullptr;
+            if (SUCCEEDED(gDevice->CreateRenderTargetView(bb, nullptr, &rtv)) && rtv) {
+                gContext->OMSetRenderTargets(1, &rtv, nullptr);
+                ImGui_ImplDX11_RenderDrawData(ImGui::GetDrawData());
+                rtv->Release();
+            }
+            bb->Release();
+        }
     }
 }
 
