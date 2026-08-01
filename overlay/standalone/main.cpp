@@ -210,6 +210,166 @@ bool GetBool(const std::string& k) { auto i = gConfig.find(k); return i != gConf
 int  GetInt(const std::string& k, int d) { auto i = gConfig.find(k); if (i == gConfig.end()) return d; try { return std::stoi(i->second); } catch (...) { return d; } }
 std::string GetStr(const std::string& k, const char* d) { auto i = gConfig.find(k); return i == gConfig.end() ? d : i->second; }
 
+// ============================ theme ============================
+//
+// Palette drawn from the game itself: sunset orange, tropical teal, warm sand on deep
+// water-blue. ImGui's stock dark theme is grey and blue, which reads as a debug tool sitting
+// on top of the game rather than as part of it.
+//
+// One hard constraint: the window is made transparent with a BLACK colour key, so nothing
+// may be pure #000000 or it turns into a hole. Every "dark" value below bottoms out at
+// roughly 0.04-0.06, never zero.
+
+namespace Col {
+    const ImVec4 bg        = ImVec4(0.043f, 0.075f, 0.098f, 0.97f);
+    const ImVec4 panel     = ImVec4(0.075f, 0.114f, 0.145f, 1.00f);
+    const ImVec4 panelHi   = ImVec4(0.102f, 0.149f, 0.188f, 1.00f);
+    const ImVec4 border    = ImVec4(1.000f, 1.000f, 1.000f, 0.09f);
+    const ImVec4 text      = ImVec4(0.914f, 0.953f, 0.969f, 1.00f);
+    const ImVec4 textDim   = ImVec4(0.561f, 0.663f, 0.718f, 1.00f);
+    const ImVec4 textFaint = ImVec4(0.318f, 0.427f, 0.482f, 1.00f);
+    const ImVec4 orange    = ImVec4(1.000f, 0.545f, 0.239f, 1.00f);
+    const ImVec4 orangeDim = ImVec4(1.000f, 0.545f, 0.239f, 0.22f);
+    const ImVec4 teal      = ImVec4(0.204f, 0.847f, 0.769f, 1.00f);
+    const ImVec4 tealDim   = ImVec4(0.204f, 0.847f, 0.769f, 0.20f);
+    const ImVec4 purple    = ImVec4(0.690f, 0.486f, 1.000f, 1.00f);
+    const ImVec4 gold      = ImVec4(1.000f, 0.831f, 0.369f, 1.00f);
+}
+
+void ApplyTheme() {
+    ImGui::StyleColorsDark();
+    ImGuiStyle& s = ImGui::GetStyle();
+
+    // Generous, consistent spacing. The stock values are tuned for dense debug panels and
+    // make a settings menu feel cramped.
+    s.WindowPadding     = ImVec2(14, 12);
+    s.FramePadding      = ImVec2(10, 6);
+    s.ItemSpacing       = ImVec2(9, 7);
+    s.ItemInnerSpacing  = ImVec2(7, 5);
+    s.IndentSpacing     = 18.0f;
+    s.ScrollbarSize     = 11.0f;
+    s.GrabMinSize       = 9.0f;
+
+    s.WindowRounding    = 8.0f;
+    s.ChildRounding     = 6.0f;
+    s.FrameRounding     = 5.0f;
+    s.PopupRounding     = 6.0f;
+    s.ScrollbarRounding = 6.0f;
+    s.GrabRounding      = 5.0f;
+    s.TabRounding       = 5.0f;
+
+    s.WindowBorderSize  = 1.0f;
+    s.FrameBorderSize   = 0.0f;
+    s.PopupBorderSize   = 1.0f;
+    s.WindowTitleAlign  = ImVec2(0.0f, 0.5f);
+
+    ImVec4* c = s.Colors;
+    c[ImGuiCol_WindowBg]           = Col::bg;
+    c[ImGuiCol_ChildBg]            = ImVec4(1, 1, 1, 0.018f);
+    c[ImGuiCol_PopupBg]            = Col::panel;
+    c[ImGuiCol_Border]             = Col::border;
+    c[ImGuiCol_BorderShadow]       = ImVec4(0, 0, 0, 0);
+
+    c[ImGuiCol_Text]               = Col::text;
+    c[ImGuiCol_TextDisabled]       = Col::textDim;
+
+    c[ImGuiCol_FrameBg]            = ImVec4(1, 1, 1, 0.055f);
+    c[ImGuiCol_FrameBgHovered]     = ImVec4(1, 1, 1, 0.095f);
+    c[ImGuiCol_FrameBgActive]      = ImVec4(1, 1, 1, 0.130f);
+
+    c[ImGuiCol_TitleBg]            = ImVec4(0.075f, 0.114f, 0.145f, 1.00f);
+    c[ImGuiCol_TitleBgActive]      = ImVec4(0.110f, 0.075f, 0.047f, 1.00f);  // warm, not blue
+    c[ImGuiCol_TitleBgCollapsed]   = ImVec4(0.075f, 0.114f, 0.145f, 0.85f);
+
+    c[ImGuiCol_Button]             = ImVec4(1, 1, 1, 0.070f);
+    c[ImGuiCol_ButtonHovered]      = ImVec4(1, 1, 1, 0.130f);
+    c[ImGuiCol_ButtonActive]       = Col::orangeDim;
+
+    c[ImGuiCol_Header]             = Col::orangeDim;
+    c[ImGuiCol_HeaderHovered]      = ImVec4(1.0f, 0.545f, 0.239f, 0.32f);
+    c[ImGuiCol_HeaderActive]       = ImVec4(1.0f, 0.545f, 0.239f, 0.45f);
+
+    c[ImGuiCol_CheckMark]          = Col::teal;
+    c[ImGuiCol_SliderGrab]         = Col::orange;
+    c[ImGuiCol_SliderGrabActive]   = ImVec4(1.0f, 0.655f, 0.404f, 1.0f);
+
+    c[ImGuiCol_Separator]          = Col::border;
+    c[ImGuiCol_SeparatorHovered]   = Col::orangeDim;
+    c[ImGuiCol_SeparatorActive]    = Col::orange;
+
+    c[ImGuiCol_ScrollbarBg]        = ImVec4(1, 1, 1, 0.025f);
+    c[ImGuiCol_ScrollbarGrab]      = ImVec4(1, 1, 1, 0.150f);
+    c[ImGuiCol_ScrollbarGrabHovered] = ImVec4(1, 1, 1, 0.230f);
+    c[ImGuiCol_ScrollbarGrabActive]  = Col::orangeDim;
+}
+
+// ---- custom widgets ----
+
+/// A section heading: small uppercase label with a hairline running to the right edge.
+/// Communicates grouping far better than ImGui's stock Separator + TextDisabled pair.
+void SectionHeader(const char* label, ImVec4 accent) {
+    ImGui::Dummy(ImVec2(0, 3));
+    ImVec2 p = ImGui::GetCursorScreenPos();
+    ImDrawList* dl = ImGui::GetWindowDrawList();
+
+    // 2px accent tick, so each section is identifiable at a glance
+    dl->AddRectFilled(ImVec2(p.x, p.y + 2), ImVec2(p.x + 3, p.y + 13),
+                      ImGui::GetColorU32(accent), 1.5f);
+
+    ImGui::Indent(9.0f);
+    ImGui::PushStyleColor(ImGuiCol_Text, Col::textDim);
+    ImGui::TextUnformatted(label);
+    ImGui::PopStyleColor();
+    ImGui::Unindent(9.0f);
+
+    ImVec2 t = ImGui::GetItemRectMax();
+    float right = ImGui::GetWindowPos().x + ImGui::GetWindowContentRegionMax().x;
+    dl->AddLine(ImVec2(t.x + 10, t.y - 7), ImVec2(right, t.y - 7),
+                ImGui::GetColorU32(Col::border), 1.0f);
+    ImGui::Dummy(ImVec2(0, 1));
+}
+
+/// A real sliding toggle rather than a tick box. Reads as on/off at a glance across a
+/// column of nine, which a row of identical checkmarks does not.
+bool ToggleSwitch(const char* label, bool* v) {
+    ImDrawList* dl = ImGui::GetWindowDrawList();
+    ImVec2 p = ImGui::GetCursorScreenPos();
+    float h = ImGui::GetFrameHeight() * 0.82f;
+    float w = h * 1.85f;
+    float r = h * 0.5f;
+
+    ImGui::InvisibleButton(label, ImVec2(w, h));
+    bool changed = false;
+    if (ImGui::IsItemClicked()) { *v = !*v; changed = true; }
+
+    float t = *v ? 1.0f : 0.0f;
+    ImU32 track = ImGui::GetColorU32(*v ? Col::tealDim : ImVec4(1, 1, 1, 0.075f));
+    ImU32 knob  = ImGui::GetColorU32(*v ? Col::teal : Col::textFaint);
+
+    dl->AddRectFilled(p, ImVec2(p.x + w, p.y + h), track, r);
+    dl->AddRect(p, ImVec2(p.x + w, p.y + h),
+                ImGui::GetColorU32(*v ? Col::teal : Col::border), r, 0, 1.0f);
+    dl->AddCircleFilled(ImVec2(p.x + r + t * (w - h), p.y + r), r * 0.68f, knob);
+
+    ImGui::SameLine(0, 10);
+    ImGui::PushStyleColor(ImGuiCol_Text, *v ? Col::text : Col::textDim);
+    ImGui::AlignTextToFramePadding();
+    ImGui::TextUnformatted(label);
+    ImGui::PopStyleColor();
+    return changed;
+}
+
+/// Accent-filled button for the one action that matters most on the panel.
+bool PrimaryButton(const char* label, ImVec2 size) {
+    ImGui::PushStyleColor(ImGuiCol_Button,        ImVec4(1.0f, 0.545f, 0.239f, 0.30f));
+    ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImVec4(1.0f, 0.545f, 0.239f, 0.46f));
+    ImGui::PushStyleColor(ImGuiCol_ButtonActive,  ImVec4(1.0f, 0.545f, 0.239f, 0.62f));
+    ImGui::PushStyleColor(ImGuiCol_Text,          ImVec4(1, 1, 1, 1));
+    bool r = ImGui::Button(label, size);
+    ImGui::PopStyleColor(4);
+    return r;
+}
+
 // ============================ the menu ============================
 // Lifted from the in-process build unchanged - it was always correct; only the surface it
 // drew onto was wrong.
@@ -221,13 +381,19 @@ void DrawMenu() {
         ImGui::End(); return;
     }
 
-    ImGui::TextColored(ImVec4(1.0f, 0.55f, 0.24f, 1.0f), "CrabRandomizer");
-    ImGui::SameLine(); ImGui::TextDisabled("| %s", gStatus.c_str());
+    // ---- header ----
+    ImGui::PushStyleColor(ImGuiCol_Text, Col::orange);
+    ImGui::TextUnformatted("CrabRandomizer");
+    ImGui::PopStyleColor();
+    ImGui::SameLine(0, 10);
+    ImGui::PushStyleColor(ImGuiCol_Text, Col::textFaint);
+    ImGui::TextUnformatted(gStatus.c_str());
+    ImGui::PopStyleColor();
     if (!gGameHwnd) {
         ImGui::SameLine();
-        ImGui::TextColored(ImVec4(1, 0.45f, 0.45f, 1), "  [game not running]");
+        ImGui::TextColored(ImVec4(1, 0.42f, 0.45f, 1), "  game not running");
     }
-    ImGui::Separator();
+    ImGui::Dummy(ImVec2(0, 2));
 
     if (!gConfigLoaded) {
         ImGui::TextColored(ImVec4(1, 0.4f, 0.4f, 1), "Config not loaded.");
@@ -236,22 +402,22 @@ void DrawMenu() {
         ImGui::End(); return;
     }
 
-    ImGui::TextDisabled("PRESETS");
+    SectionHeader("PRESETS", Col::orange);
     for (int i = 0; i < IM_ARRAYSIZE(kPresets); ++i) {
         if (i) ImGui::SameLine();
         if (ImGui::Button(kPresets[i])) SendCommand(std::string("preset ") + kPresets[i]);
     }
 
     ImGui::Spacing();
-    ImGui::TextDisabled("WHAT GETS RANDOMIZED");
+    SectionHeader("WHAT GETS RANDOMIZED", Col::teal);
     for (int i = 0; i < IM_ARRAYSIZE(kToggles); ++i) {
         bool v = GetBool(kToggles[i]);
-        if (ImGui::Checkbox(kToggleLabels[i], &v)) SetConfig(kToggles[i], v ? "true" : "false");
+        if (ToggleSwitch(kToggleLabels[i], &v)) SetConfig(kToggles[i], v ? "true" : "false");
         if (i == 4) ImGui::Separator();   // slot arrays | base loadout, shifted by the grenade removal
     }
 
     ImGui::Spacing();
-    ImGui::TextDisabled("MODES");
+    SectionHeader("MODES", Col::purple);
 
     std::string coop = GetStr("coopMode", "independent");
     int ci = 0; for (int i = 0; i < 3; ++i) if (coop == kCoopModes[i]) ci = i;
@@ -272,7 +438,7 @@ void DrawMenu() {
         SetConfig("minimumRarity", std::to_string(mr));
 
     if (ri == 0) {
-        ImGui::Spacing(); ImGui::TextDisabled("RARITY WEIGHTS");
+        ImGui::Spacing(); SectionHeader("RARITY WEIGHTS", Col::gold);
         const char* wk[] = { "rarityWeight1","rarityWeight2","rarityWeight3","rarityWeight4" };
         const char* wl[] = { "Common","Uncommon","Rare","Legendary" };
         for (int i = 0; i < 4; ++i) {
@@ -281,11 +447,14 @@ void DrawMenu() {
         }
     }
 
-    ImGui::Spacing(); ImGui::Separator();
-    if (ImGui::Button("Shuffle now", ImVec2(140, 30))) SendCommand("now");
-    ImGui::SameLine(); if (ImGui::Button("Undo", ImVec2(85, 30)))   SendCommand("undo");
-    ImGui::SameLine(); if (ImGui::Button("Status", ImVec2(85, 30))) SendCommand("status");
-    ImGui::SameLine(); if (ImGui::Button("Reload", ImVec2(85, 30))) LoadConfig();
+    SectionHeader("ACTIONS", Col::orange);
+    if (PrimaryButton("Shuffle now", ImVec2(-1, 34))) SendCommand("now");
+    float third = (ImGui::GetContentRegionAvail().x - ImGui::GetStyle().ItemSpacing.x * 2) / 3.0f;
+    if (ImGui::Button("Undo", ImVec2(third, 28)))   SendCommand("undo");
+    ImGui::SameLine();
+    if (ImGui::Button("Status", ImVec2(third, 28))) SendCommand("status");
+    ImGui::SameLine();
+    if (ImGui::Button("Reload", ImVec2(third, 28))) LoadConfig();
 
     ImGui::Spacing();
     ImGui::TextDisabled("F8 hides/shows this window. Changes are applied by the Lua mod.");
@@ -411,12 +580,7 @@ int WINAPI WinMain(HINSTANCE inst, HINSTANCE, LPSTR, int) {
     ImGui::CreateContext();
     ImGuiIO& io = ImGui::GetIO();
     io.IniFilename = nullptr;
-    ImGui::StyleColorsDark();
-    ImGuiStyle& st = ImGui::GetStyle();
-    st.WindowRounding = 6.0f;
-    st.FrameRounding = 4.0f;
-    // Never fully transparent, and never pure black - the colour key would eat it.
-    st.Colors[ImGuiCol_WindowBg] = ImVec4(0.06f, 0.09f, 0.12f, 0.97f);
+    ApplyTheme();
 
     ImGui_ImplWin32_Init(gHwnd);
     ImGui_ImplDX11_Init(gDevice, gContext);
