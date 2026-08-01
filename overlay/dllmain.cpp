@@ -60,7 +60,10 @@ bool gInitDone   = false;   // imgui + rtv ready
 bool gInitFailed = false;   // latched: never try again, just pass through
 bool gMenuOpen   = false;
 
-std::string gScriptsDir;    // ...\Mods\CrabRandomizer\Scripts\
+// NOTE: no trailing backslash in this comment. A '\' at the end of a // comment is a line
+// continuation in C++, which silently swallows the next line - it ate the gStatus
+// declaration below and produced six confusing "undeclared identifier" errors.
+std::string gScriptsDir;    // path to Mods/CrabRandomizer/Scripts/
 std::string gStatus = "loaded";
 
 // ---- config mirrored from randoconfig.txt ----
