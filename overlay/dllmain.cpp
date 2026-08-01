@@ -28,6 +28,7 @@
 #include <windows.h>
 #include <d3d11.h>
 #include <dxgi.h>
+#include <dxgi1_2.h>   // IDXGISwapChain1 + DXGI_PRESENT_PARAMETERS live here, not in dxgi.h
 #include <cstdio>
 #include <string>
 #include <vector>
