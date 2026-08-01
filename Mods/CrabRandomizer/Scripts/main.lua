@@ -1457,6 +1457,85 @@ Command("randomizehistory", function(parts)
     log("Use 'randomizeundo' to revert the most recent shuffle (#%d).", History[#History].generation or 0)
 end)
 
+--- READ-ONLY reconnaissance for the difficulty features (enemy scaling, forced perks).
+--- Writes what enemy classes actually exist and which of their properties look like
+--- health / speed, plus every perk name so a perk can be referred to by its REAL name.
+---
+--- Deliberately mutates nothing. Two features have now been built on assumptions about
+--- this game's internals and both had to be pulled; this exists so the next one is built
+--- on what the game actually reports.
+Command("randomizescan", function()
+    local base = ResolvedBasePath or BASE_PATHS[1]
+    local path = base .. "crabrandomizer-scan.txt"
+    local f = io.open(path, "w")
+    if not f then log("Could not write scan to %s", path) return end
+
+    local function w(fmt, ...) f:write(string.format(fmt, ...) .. "\n") end
+    w("CrabRandomizer scan - v%s", MOD_VERSION)
+    w("READ ONLY: nothing below was modified.")
+    w("")
+
+    -- ---- enemy classes ----
+    local ENEMY_CANDIDATES = {
+        "CrabEnemy", "CrabEnemyCharacter", "CrabEnemyBase", "CrabAICharacter",
+        "CrabCharacter", "CrabEnemyDA", "CrabEnemySpawnDA", "CrabWaveDA",
+    }
+    w("=== enemy classes ===")
+    for _, name in ipairs(ENEMY_CANDIDATES) do
+        local ok, objs = pcall(function() return FindAllOf(name) end)
+        local n = (ok and objs) and #objs or 0
+        w("%-24s %s", name, (n > 0) and (n .. " instance(s)") or "-")
+
+        -- Report the properties on the FIRST instance only. Reading a property is safe;
+        -- we never write, and every access is wrapped.
+        if n > 0 then
+            local sample = objs[1]
+            local INTERESTING = {
+                "Health", "MaxHealth", "CurrentHealth", "BaseHealth", "HealthMax",
+                "Speed", "MaxSpeed", "MoveSpeed", "WalkSpeed", "MaxWalkSpeed",
+                "Damage", "BaseDamage", "DamageMultiplier", "HealthMultiplier",
+                "ScaleFactor", "DifficultyScale", "Level",
+            }
+            for _, p in ipairs(INTERESTING) do
+                local okP, v = pcall(function() return sample[p] end)
+                if okP and v ~= nil then w("    .%s = %s", p, tostring(v)) end
+            end
+            local okC, cls = pcall(function() return sample:GetClass():GetFullName() end)
+            if okC then w("    class: %s", tostring(cls)) end
+        end
+    end
+
+    -- ---- movement components carry speed in UE ----
+    w("")
+    w("=== movement components ===")
+    for _, name in ipairs({ "CharacterMovementComponent", "CrabCharacterMovementComponent" }) do
+        local ok, objs = pcall(function() return FindAllOf(name) end)
+        local n = (ok and objs) and #objs or 0
+        w("%-34s %s", name, (n > 0) and (n .. " instance(s)") or "-")
+        if n > 0 then
+            for _, p in ipairs({ "MaxWalkSpeed", "MaxAcceleration", "GravityScale" }) do
+                local okP, v = pcall(function() return objs[1][p] end)
+                if okP and v ~= nil then w("    .%s = %s", p, tostring(v)) end
+            end
+        end
+    end
+
+    -- ---- every perk, by real name ----
+    w("")
+    w("=== perks (exact names - use these, do not guess) ===")
+    RefreshAllPools()
+    local perks = GetPool("CrabPerkDA")
+    w("%d perk data assets", #perks)
+    for _, da in ipairs(perks) do
+        local okN, n = pcall(function() return da:GetFullName() end)
+        if okN then w("  %s", tostring(n)) end
+    end
+
+    f:close()
+    log("Scan written to %s", path)
+    log("Send that file to Claude - it is read-only and changed nothing.")
+end)
+
 Command("randomizedump", function()
     RefreshAllPools()
     local base = ResolvedBasePath or BASE_PATHS[1]
