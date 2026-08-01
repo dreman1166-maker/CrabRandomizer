@@ -25,11 +25,27 @@ FetchContent_Declare(minhook
     GIT_SHALLOW    TRUE
 )
 
-FetchContent_MakeAvailable(minhook)
 FetchContent_GetProperties(imgui)
 if(NOT imgui_POPULATED)
     FetchContent_Populate(imgui)
 endif()
+FetchContent_GetProperties(minhook)
+if(NOT minhook_POPULATED)
+    FetchContent_Populate(minhook)
+endif()
+
+# MinHook v1.3.3 does not ship a CMake target we can rely on (add_subdirectory produced no
+# 'minhook' target, so the link stage went looking for a bare minhook.lib and failed).
+# Its sources are a handful of C files, so build them directly - same approach as ImGui,
+# and immune to whatever upstream does with its build files.
+add_library(minhook STATIC
+    ${minhook_SOURCE_DIR}/src/buffer.c
+    ${minhook_SOURCE_DIR}/src/hook.c
+    ${minhook_SOURCE_DIR}/src/trampoline.c
+    ${minhook_SOURCE_DIR}/src/hde/hde32.c
+    ${minhook_SOURCE_DIR}/src/hde/hde64.c
+)
+target_include_directories(minhook PUBLIC ${minhook_SOURCE_DIR}/include)
 
 # ImGui ships no CMakeLists, so list its sources explicitly - core plus the two backends
 # we actually use.
