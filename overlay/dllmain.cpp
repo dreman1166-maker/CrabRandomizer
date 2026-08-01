@@ -402,9 +402,32 @@ void RenderOverlay(IDXGISwapChain* sc) {
 
         ImGui_ImplDX11_NewFrame();
         ImGui_ImplWin32_NewFrame();
+
+        // Force DisplaySize from the SWAPCHAIN, not the window. ImGui_ImplWin32_NewFrame
+        // derives it from GetClientRect on the HWND, and if that returns an empty rect
+        // (wrong/!foreground window, borderless fullscreen) DisplaySize is 0x0 and ImGui
+        // emits no geometry at all - drawing nothing, silently, exactly like this.
+        {
+            DXGI_SWAP_CHAIN_DESC d{};
+            if (SUCCEEDED(sc->GetDesc(&d)) && d.BufferDesc.Width && d.BufferDesc.Height)
+                ImGui::GetIO().DisplaySize =
+                    ImVec2((float)d.BufferDesc.Width, (float)d.BufferDesc.Height);
+        }
+
         ImGui::NewFrame();
         DrawMenu();
         ImGui::Render();
+
+        // One-shot proof of what ImGui actually produced.
+        static bool logged = false;
+        if (!logged) {
+            logged = true;
+            ImDrawData* dd = ImGui::GetDrawData();
+            ImGuiIO& io = ImGui::GetIO();
+            Log("draw: DisplaySize=%.0fx%.0f verts=%d cmdlists=%d",
+                io.DisplaySize.x, io.DisplaySize.y,
+                dd ? dd->TotalVtxCount : -1, dd ? dd->CmdListsCount : -1);
+        }
         // Acquire the back buffer EVERY FRAME. With the DXGI flip model - which UE4 uses -
         // buffer 0 rotates after each Present, so the RTV cached at init pointed at an
         // offscreen buffer. The menu was rendering perfectly into something never shown,
@@ -414,6 +437,11 @@ void RenderOverlay(IDXGISwapChain* sc) {
             ID3D11RenderTargetView* rtv = nullptr;
             if (SUCCEEDED(gDevice->CreateRenderTargetView(bb, nullptr, &rtv)) && rtv) {
                 gContext->OMSetRenderTargets(1, &rtv, nullptr);
+                D3D11_VIEWPORT vp{};
+                vp.Width  = ImGui::GetIO().DisplaySize.x;
+                vp.Height = ImGui::GetIO().DisplaySize.y;
+                vp.MaxDepth = 1.0f;
+                gContext->RSSetViewports(1, &vp);
                 ImGui_ImplDX11_RenderDrawData(ImGui::GetDrawData());
                 rtv->Release();
             }
