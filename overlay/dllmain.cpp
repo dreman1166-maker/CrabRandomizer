@@ -355,7 +355,42 @@ void RenderOverlay(IDXGISwapChain* sc) {
         Log("ImGui initialised, window=%p, scripts=%s", (void*)gWindow, gScriptsDir.c_str());
     }
 
+    // ---- toggle by POLLING, not by WndProc ----
+    //
+    // The WndProc hook installs fine but never sees the keypress: UE4SS hooks the same
+    // window, and UE4 takes keyboard through raw input rather than window messages. The
+    // log proved rendering worked while Ctrl+K did nothing, which isolated it to input.
+    // Present runs every frame, so poll here instead - it cannot be intercepted.
+    {
+        static bool prevToggle = false;
+        bool ctrl = (GetAsyncKeyState(VK_CONTROL) & 0x8000) != 0;
+        bool k    = (GetAsyncKeyState('K')        & 0x8000) != 0;
+        bool ins  = (GetAsyncKeyState(VK_INSERT)  & 0x8000) != 0;
+        bool now  = (ctrl && k) || ins;
+        if (now && !prevToggle) {          // rising edge only, or it flips every frame
+            gMenuOpen = !gMenuOpen;
+            if (gMenuOpen) LoadConfig();
+            Log("menu %s (polled)", gMenuOpen ? "OPENED" : "closed");
+        }
+        prevToggle = now;
+    }
+
     if (gMenuOpen && gRTV) {
+        // Feed ImGui input directly too. ImGui_ImplWin32 normally gets mouse buttons from
+        // WndProc messages, which for the same reason never arrive - the menu would draw
+        // but not respond to clicks.
+        {
+            ImGuiIO& io = ImGui::GetIO();
+            POINT p;
+            if (GetCursorPos(&p) && gWindow && ScreenToClient(gWindow, &p))
+                io.MousePos = ImVec2((float)p.x, (float)p.y);
+            io.MouseDown[0] = (GetAsyncKeyState(VK_LBUTTON) & 0x8000) != 0;
+            io.MouseDown[1] = (GetAsyncKeyState(VK_RBUTTON) & 0x8000) != 0;
+            // The game hides/captures the hardware cursor, so draw our own or there is
+            // nothing to aim with.
+            io.MouseDrawCursor = true;
+        }
+
         ImGui_ImplDX11_NewFrame();
         ImGui_ImplWin32_NewFrame();
         ImGui::NewFrame();
