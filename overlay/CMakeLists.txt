@@ -7,7 +7,7 @@
 # ImGui and MinHook are fetched at configure time, so a clean CI runner needs no vendoring.
 
 cmake_minimum_required(VERSION 3.20)
-project(CrabRandomizerOverlay CXX)
+project(CrabRandomizerOverlay LANGUAGES C CXX)   # C is required: MinHook is C, not C++
 
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
